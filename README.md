@@ -1,9 +1,3 @@
-¡Absolutamente! Usar PlatformIO es una excelente elección, ya que simplifica enormemente la gestión de toolchains, librerías y la carga del firmware.
-
-Aquí tienes una plantilla de `README.md` completamente adaptada para un proyecto de la EDU-CIAA desarrollado con VS Code y PlatformIO. Esta versión se centra en los flujos de trabajo y comandos específicos de este entorno.
-
----
-
 # Firmware EDU-CIAA para Rover Autónomo (PlatformIO)
 
 Este repositorio contiene el código fuente del firmware para la placa **EDU-CIAA**, que actúa como el controlador de bajo nivel (MCU) para el proyecto de Rover Autónomo. El desarrollo está configurado para utilizar el ecosistema de **PlatformIO en Visual Studio Code**.
