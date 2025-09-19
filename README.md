@@ -30,8 +30,8 @@ Este proyecto está diseñado para ser compilado, cargado y depurado utilizando 
 
 1.  **Clonar el repositorio:**
     ```bash
-    git clone [URL-DE-TU-REPOSITORIO]
-    cd [NOMBRE-DEL-REPOSITORIO]
+    git clone edu-ciaa-firmware
+    cd edu-ciaa-firmware
     ```
 
 2.  **Abrir el proyecto en VS Code:**
