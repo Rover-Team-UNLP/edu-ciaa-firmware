@@ -1,0 +1,117 @@
+# ===========================
+# PlatformIO
+# ===========================
+.pio/
+.pioenvs/
+.piolibdeps/
+.piobuild/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# ===========================
+# Archivos compilados (C/C++)
+# ===========================
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.a
+*.so
+*.d
+
+# Archivos de dependencias generados por Make
+*.d
+
+# ===========================
+# VS Code
+# ===========================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+*.code-workspace
+
+# ===========================
+# Archivos temporales del sistema
+# ===========================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===========================
+# Logs y debugging
+# ===========================
+*.log
+*.dump
+*.out
+
+# ===========================
+# OpenOCD y debugging
+# ===========================
+*.cfg.user
+
+# ===========================
+# Backup y archivos temporales
+# ===========================
+*.bak
+*.swp
+*.swo
+*~
+*.tmp
+*.temp
+
+# ===========================
+# Documentación generada
+# ===========================
+docs/_build/
+*.pdf
+!documentation/*.pdf
+
+# ===========================
+# Archivos específicos del proyecto
+# ===========================
+# Si tienes credenciales o configuraciones locales
+config.local.mk
+secrets.h
+
+# ===========================
+# Python (si usas scripts de automatización)
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# ===========================
+# Node.js (si usas herramientas JS)
+# ===========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===========================
+# Git
+# ===========================
+*.orig
+*.rej
