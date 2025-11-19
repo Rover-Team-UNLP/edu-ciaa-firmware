@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// --- Debug ---
+#define DEBUG // Descomentar para habilitar logs de debug
+
 // --- Definiciones del Protocolo (Compatible con ESP32) ---
 #define FRAME_START_CHAR 'S'
 #define FRAME_END_CHAR 'E'
@@ -38,6 +41,11 @@ static RoverCommand last_received_command;
 // --- Prototipos Privados ---
 static bool parse_command_string(const char *buffer, RoverCommand *command);
 static void send_response(response_type_t resp_type, uint16_t cmd_id);
+
+#ifdef DEBUG
+static const char *get_command_name(uint8_t cmd_type);
+static const char *get_response_name(response_type_t resp_type);
+#endif
 
 // --- Handler de Interrupción ---
 void UART2_IRQHandler(void)
@@ -82,7 +90,7 @@ void UART2_IRQHandler(void)
     }
 }
 
-// --- Funciones Públicas ---
+// --- Funciones Públicas Básicas ---
 void uart_init(uint32_t baudRate)
 {
     Chip_SCU_PinMuxSet(7, 1, (SCU_MODE_PULLDOWN | SCU_MODE_FUNC6));
@@ -134,6 +142,52 @@ void uart_get_received_command(RoverCommand *cmd)
 void uart_send_string_blocking(const char *str)
 {
     Chip_UART_SendBlocking(LPC_USART2, str, strlen(str));
+}
+
+// --- Funciones Públicas de Alto Nivel ---
+
+/**
+ * @brief Solicita un nuevo comando al ESP32 enviando RESP_READY
+ */
+void uart_request_command(void)
+{
+    send_response(RESP_READY, 0);
+}
+
+/**
+ * @brief Envía un ACK (confirmación) al ESP32 para un comando específico
+ * @param cmd_id ID del comando que se está confirmando
+ */
+void uart_send_ack(uint16_t cmd_id)
+{
+    send_response(RESP_ACK, cmd_id);
+}
+
+/**
+ * @brief Envía un NACK (rechazo genérico) al ESP32
+ * @param cmd_id ID del comando que se está rechazando
+ */
+void uart_send_nack(uint16_t cmd_id)
+{
+    send_response(RESP_NACK, cmd_id);
+}
+
+/**
+ * @brief Envía error de comando inválido al ESP32
+ * @param cmd_id ID del comando que generó el error
+ */
+void uart_send_error_invalid_command(uint16_t cmd_id)
+{
+    send_response(RESP_ERR_INVALID_COMMAND, cmd_id);
+}
+
+/**
+ * @brief Envía error de parámetros inválidos al ESP32
+ * @param cmd_id ID del comando que generó el error
+ */
+void uart_send_error_invalid_params(uint16_t cmd_id)
+{
+    send_response(RESP_ERR_INVALID_PARAMS, cmd_id);
 }
 
 // --- Funciones Privadas ---
@@ -200,6 +254,14 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
 
     // Enviar ACK
     send_response(RESP_ACK, cmd_id);
+
+#ifdef DEBUG
+    char debug_msg[80];
+    snprintf(debug_msg, sizeof(debug_msg), "[RX] CMD: %s (ID:%u) M1:%d M2:%d\n",
+             get_command_name(cmd_type), cmd_id, command->speed_M1, command->speed_M2);
+    uart_send_string_blocking(debug_msg);
+#endif
+
     return true;
 }
 
@@ -212,4 +274,55 @@ static void send_response(response_type_t resp_type, uint16_t cmd_id)
     char response[20];
     snprintf(response, sizeof(response), "S:%d:%u:E", resp_type, cmd_id);
     uart_send_string_blocking(response);
+
+#ifdef DEBUG
+    char debug_msg[60];
+    snprintf(debug_msg, sizeof(debug_msg), "[TX] RESP: %s (ID:%u)\n",
+             get_response_name(resp_type), cmd_id);
+    uart_send_string_blocking(debug_msg);
+#endif
 }
+
+#ifdef DEBUG
+/**
+ * @brief Convierte tipo de comando a string para debug
+ */
+static const char *get_command_name(uint8_t cmd_type)
+{
+    switch (cmd_type)
+    {
+    case CMD_MOVE_FORWARD:
+        return "FORWARD";
+    case CMD_MOVE_BACKWARDS:
+        return "BACKWARDS";
+    case CMD_MOVE_LEFT:
+        return "LEFT";
+    case CMD_MOVE_RIGHT:
+        return "RIGHT";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+/**
+ * @brief Convierte tipo de respuesta a string para debug
+ */
+static const char *get_response_name(response_type_t resp_type)
+{
+    switch (resp_type)
+    {
+    case RESP_ACK:
+        return "ACK";
+    case RESP_READY:
+        return "READY";
+    case RESP_NACK:
+        return "NACK";
+    case RESP_ERR_INVALID_COMMAND:
+        return "ERR_INVALID_CMD";
+    case RESP_ERR_INVALID_PARAMS:
+        return "ERR_INVALID_PARAMS";
+    default:
+        return "UNKNOWN";
+    }
+}
+#endif

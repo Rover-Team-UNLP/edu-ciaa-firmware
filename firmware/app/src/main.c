@@ -5,83 +5,7 @@
 
 #define TICK_DELAY_MS 500
 
-/**
- * @brief Función para procesar el comando del rover recibido por UART.
- * @param cmd : Estructura con el comando parseado.
- */
-static void process_rover_command(RoverCommand cmd);
-
-/**
- * @brief Función placeholder para controlar los motores (a implementar).
- * @param speed_m1 : Velocidad para el motor 1 (-100 a 100).
- * @param speed_m2 : Velocidad para el motor 2 (-100 a 100).
- */
-static void control_motors(int speed_m1, int speed_m2);
-
 static uint32_t tick_counter = 0; // Contador para el delay del LED
-
-/**
- * @brief Procesa comandos del rover con el struct RoverCommand.
- */
-static void process_rover_command(RoverCommand cmd)
-{
-   if (!cmd.valid)
-   {
-      // Podríamos enviar un mensaje de error o simplemente ignorar
-      uart_send_string_blocking("Error: Comando Invalido\n");
-      return;
-   }
-
-   switch (cmd.cmd_type)
-   {
-   case CMD_MOVE_FORWARD:
-      Board_LED_Set(LED_1, true);
-      Board_LED_Set(LED_2, false);
-      control_motors(cmd.speed_M1, cmd.speed_M2);
-      uart_send_string_blocking("OK: FORWARD\n");
-      break;
-
-   case CMD_MOVE_BACKWARDS:
-      Board_LED_Set(LED_1, false);
-      Board_LED_Set(LED_2, true);
-      control_motors(cmd.speed_M1, cmd.speed_M2);
-      uart_send_string_blocking("OK: BACKWARDS\n");
-      break;
-
-   case CMD_MOVE_LEFT:
-      Board_LED_Set(LED_1, true);
-      Board_LED_Set(LED_2, true);
-      control_motors(cmd.speed_M1, cmd.speed_M2);
-      uart_send_string_blocking("OK: LEFT\n");
-      break;
-
-   case CMD_MOVE_RIGHT:
-      Board_LED_Set(LED_1, true);
-      Board_LED_Set(LED_2, true);
-      control_motors(cmd.speed_M1, cmd.speed_M2);
-      uart_send_string_blocking("OK: RIGHT\n");
-      break;
-
-   default:
-      // Comando desconocido (no debería ocurrir si parse_command_string valida bien)
-      uart_send_string_blocking("Error: Comando Desconocido\n");
-      control_motors(0, 0); // Detener por seguridad
-      break;
-   }
-}
-
-/**
- * @brief Control de Motores
- *
- * Envia comandos de control a los motores. Por ahora es un placeholder para debugear.
- */
-static void control_motors(int speed_m1, int speed_m2)
-{
-   // Placeholder: Imprime velocidades recibidas por UART (útil para debug inicial)
-   char debug_msg[50];
-   sprintf(debug_msg, "Motores: M1=%d, M2=%d\n", speed_m1, speed_m2);
-   uart_send_string_blocking(debug_msg);
-}
 
 /**
  * @brief Main function
@@ -111,7 +35,7 @@ int main(void)
       if (uart_is_new_command_available())
       {
          uart_get_received_command(&current_command); // Obtiene el comando
-         process_rover_command(current_command);      // Procesa el comando
+         // process_rover_command(current_command);      // Procesa el comando
       }
 
       /* Parpadeo de LED RGB azul como señal de vida (heartbeat) */

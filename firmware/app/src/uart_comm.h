@@ -16,6 +16,8 @@ typedef struct
     bool valid;       // Indica si el comando es válido
 } RoverCommand;
 
+// --- Funciones Básicas ---
+
 /**
  * @brief Inicializa la uart con el baudRate especificado
  *
@@ -43,5 +45,36 @@ void uart_get_received_command(RoverCommand *cmd);
  * @param str String a enviar por UART.
  */
 void uart_send_string_blocking(const char *str);
+
+// --- Funciones de Alto Nivel ---
+
+/**
+ * @brief Solicita un nuevo comando al ESP32 enviando RESP_READY
+ */
+void uart_request_command(void);
+
+/**
+ * @brief Envía un ACK (confirmación) al ESP32 para un comando específico
+ * @param cmd_id ID del comando que se está confirmando
+ */
+void uart_send_ack(uint16_t cmd_id);
+
+/**
+ * @brief Envía un NACK (rechazo genérico) al ESP32
+ * @param cmd_id ID del comando que se está rechazando
+ */
+void uart_send_nack(uint16_t cmd_id);
+
+/**
+ * @brief Envía error de comando inválido al ESP32
+ * @param cmd_id ID del comando que generó el error
+ */
+void uart_send_error_invalid_command(uint16_t cmd_id);
+
+/**
+ * @brief Envía error de parámetros inválidos al ESP32
+ * @param cmd_id ID del comando que generó el error
+ */
+void uart_send_error_invalid_params(uint16_t cmd_id);
 
 #endif
