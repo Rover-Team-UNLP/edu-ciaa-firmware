@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <cmsis_43xx.h>
 
 // --- Debug ---
 #define DEBUG // Descomentar para habilitar logs de debug
@@ -102,8 +103,8 @@ void uart_init(uint32_t baudRate)
     Chip_UART_TXEnable(LPC_USART2);
     Chip_UART_SetupFIFOS(LPC_USART2, (UART_FCR_FIFO_EN | UART_FCR_RX_RS | UART_FCR_TX_RS | UART_FCR_TRG_LEV0));
     Chip_UART_IntEnable(LPC_USART2, UART_IER_RBRINT);
-
-    NVIC_SetPriority(USART2_IRQn, 6);
+    LPC43XX_IRQn_Type nvic_irq = USART2_IRQn;
+    NVIC_SetPriority(USART0_IRQn, 6);
     NVIC_EnableIRQ(USART2_IRQn);
 
     rx_write_index = 0;

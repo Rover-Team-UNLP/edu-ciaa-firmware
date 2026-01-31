@@ -72,11 +72,12 @@ size: $(TARGET)
 program: $(TARGET_BIN)
 	@echo PROG
 	$(Q)$(OOCD) -f $(OOCD_SCRIPT) \
-		-c "init" \
-		-c "halt 0" \
-		-c "flash write_image erase unlock $< 0x1A000000 bin" \
-		-c "reset run" \
-		-c "shutdown" 2>&1
+        -c "init" \
+        -c "halt 0" \
+        -c "flash erase_address 0x1A000000 0x80000" \
+        -c "flash write_image $< 0x1A000000 bin" \
+        -c "reset run" \
+        -c "shutdown" 2>&1
 
 debug: $(TARGET_BIN)
 	@echo DEBUG
