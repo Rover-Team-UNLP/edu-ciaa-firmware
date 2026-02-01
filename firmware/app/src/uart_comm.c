@@ -94,6 +94,7 @@ void UART2_IRQHandler(void)
 // --- Funciones Públicas Básicas ---
 void uart_init(uint32_t baudRate)
 {
+    Board_LED_Set(LED_1, true);
     Chip_SCU_PinMuxSet(7, 1, (SCU_MODE_PULLDOWN | SCU_MODE_FUNC6));
     Chip_SCU_PinMuxSet(7, 2, (SCU_MODE_INACT | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC6));
 
@@ -113,6 +114,7 @@ void uart_init(uint32_t baudRate)
 
     // Enviar RESP_READY al iniciar para indicar que estamos listos
     send_response(RESP_READY, 0);
+    Board_LED_Set(LED_1, false);
 }
 
 bool uart_is_new_command_available(void)

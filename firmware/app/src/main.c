@@ -34,8 +34,12 @@ int main(void)
       /* Verifica si hay un nuevo comando disponible desde UART */
       if (uart_is_new_command_available())
       {
+         Board_LED_Set(LED_1, true);
          uart_get_received_command(&current_command); // Obtiene el comando
-         process_rover_command(current_command);      // Procesa el comando
+
+         // TODO Funcion de entrada a la parte de motores
+         // process_rover_command(current_command);      // Procesa el comando
+         Board_LED_Set(LED_1, false);
       }
 
       /* Parpadeo de LED RGB azul como señal de vida (heartbeat) */

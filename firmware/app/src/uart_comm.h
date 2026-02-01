@@ -4,6 +4,28 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * PROTOCOLO DE COMUNICACIÓN UART
+ *
+ * Formato de transmisión:
+ *   S<CMD_TYPE>:<CMD_ID>:E
+ *
+ * Ejemplo de comando FORWARD con ID 123:
+ *   S0:123:E
+ *
+ * Donde:
+ *   S = Frame Start Character
+ *   <CMD_TYPE> = Tipo de comando (0-3)
+ *   <CMD_ID> = ID único del comando (0-65535)
+ *   E = Frame End Character
+ *
+ * Formato de respuesta:
+ *   S:<RESP_TYPE>:<CMD_ID>:E
+ *
+ * Ejemplo de ACK para comando 123:
+ *   S:0:123:E
+ */
+
 #define UART_RX_BUFFER_SIZE 64
 #define UART_BAUD_RATE 115200
 
