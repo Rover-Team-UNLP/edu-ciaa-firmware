@@ -10,13 +10,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define ACK_AWAIT_MS 200 // Deben definirse los tiempos en la propia fase de pruebas
-#define CMD_AWAIT_MS 1000
 #define RESPONSE_LEN 13
-#define CMD_PARAMS_LEN 10
+#define COMMAND_PARAMS_LEN 10
 
-const char *response_format = "S:%d:%d:E";
-const char *cmd_format = "%d:%d:";
+// const char *response_format = "S:%d:%d:E";
+// const char *cmd_format = "S:%d:%d:E";
 
 /* IDs de respuestas/envíos desde EDU-CIAA */
 typedef enum
@@ -31,17 +29,18 @@ typedef enum
 
 typedef enum
 {
-    CMD_MOVE_FORWARD = 0,
-    CMD_MOVE_BACKWARDS,
-    CMD_MOVE_LEFT,
-    CMD_MOVE_RIGHT
+    COMMAND_MOVE_FORWARD = 0,
+    COMMAND_MOVE_BACKWARDS,
+    COMMAND_MOVE_LEFT,
+    COMMAND_MOVE_RIGHT,
+    COMMAND_STOP
 } rover_cmd_type_t;
 
 typedef struct
 {
     uint16_t id;
     rover_cmd_type_t cmd;
-    double params[CMD_PARAMS_LEN]; // This is a estimate, we should see if it's less or more.
+    double params[COMMAND_PARAMS_LEN]; // This is a estimate, we should see if it's less or more.
     uint8_t total_params;
 } data_cmd;
 

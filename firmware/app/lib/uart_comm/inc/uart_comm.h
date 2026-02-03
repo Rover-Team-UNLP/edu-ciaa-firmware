@@ -3,15 +3,16 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "communication.h"
 
 /**
  * PROTOCOLO DE COMUNICACIÓN UART
  *
  * Formato de transmisión:
- *   S<CMD_TYPE>:<CMD_ID>:E
+ *   S:<CMD_TYPE>:<CMD_ID>:E
  *
  * Ejemplo de comando FORWARD con ID 123:
- *   S0:123:E
+ *   S:0:123:E
  *
  * Donde:
  *   S = Frame Start Character

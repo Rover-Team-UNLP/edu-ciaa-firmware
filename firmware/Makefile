@@ -1,18 +1,29 @@
 include config.mk
 
+# Source files from all modules
 SRC=$(foreach m, $(MODULES), $(wildcard $(m)/src/*.c))
+
+# Include directories
 INCLUDES=$(foreach m, $(MODULES), -I$(m)/inc)
+
+# Preprocessor defines
 _DEFINES=$(foreach m, $(DEFINES), -D$(m))
-OBJECTS=$(SRC:.c=.o)
-DEPS=$(SRC:.c=.d)
+
+# Build directory
+BUILD_DIR=build
+
+# Object files in build directory (preserve directory structure)
+OBJECTS=$(patsubst %.c,$(BUILD_DIR)/%.o,$(SRC))
+DEPS=$(patsubst %.c,$(BUILD_DIR)/%.d,$(SRC))
+
 LDSCRIPT=ciaa_lpc4337.ld
 
 ARCH_FLAGS=-mcpu=cortex-m4 -mthumb
 
-TARGET=$(APP).elf
-TARGET_BIN=$(basename $(TARGET)).bin
-TARGET_LST=$(basename $(TARGET)).lst
-TARGET_MAP=$(basename $(TARGET)).map
+TARGET=$(BUILD_DIR)/$(APP).elf
+TARGET_BIN=$(BUILD_DIR)/$(APP).bin
+TARGET_LST=$(BUILD_DIR)/$(APP).lst
+TARGET_MAP=$(BUILD_DIR)/$(APP).map
 
 ifeq ($(USE_FPU),y)
 ARCH_FLAGS+=-mfloat-abi=hard -mfpu=fpv4-sp-d16
@@ -50,12 +61,15 @@ all: $(TARGET) $(TARGET_BIN) $(TARGET_LST) size
 
 -include $(DEPS)
 
-%.o: %.c
+# Rule to compile .c files to .o in build directory
+$(BUILD_DIR)/%.o: %.c
 	@echo CC $<
+	@mkdir -p $(dir $@)
 	$(Q)$(CC) -MMD $(CFLAGS) -c -o $@ $<
 
 $(TARGET): $(OBJECTS)
 	@echo LD $@
+	@mkdir -p $(dir $@)
 	$(Q)$(LD) $(LDFLAGS) -o $@ $(OBJECTS)
 
 $(TARGET_BIN): $(TARGET)
@@ -72,12 +86,12 @@ size: $(TARGET)
 program: $(TARGET_BIN)
 	@echo PROG
 	$(Q)$(OOCD) -f $(OOCD_SCRIPT) \
-        -c "init" \
-        -c "halt 0" \
-        -c "flash erase_address 0x1A000000 0x80000" \
-        -c "flash write_image $< 0x1A000000 bin" \
-        -c "reset run" \
-        -c "shutdown" 2>&1
+	    -c "init" \
+	    -c "halt 0" \
+	    -c "flash erase_address 0x1A000000 0x80000" \
+	    -c "flash write_image $< 0x1A000000 bin" \
+	    -c "reset run" \
+	    -c "shutdown" 2>&1
 
 debug: $(TARGET_BIN)
 	@echo DEBUG
@@ -85,6 +99,6 @@ debug: $(TARGET_BIN)
 
 clean:
 	@echo CLEAN
-	$(Q)rm -fR $(OBJECTS) $(TARGET) $(TARGET_BIN) $(TARGET_LST) $(DEPS)
+	$(Q)rm -rf $(BUILD_DIR)
 
-.PHONY: all size clean program
+.PHONY: all size clean program debug

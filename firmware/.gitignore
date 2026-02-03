@@ -1,4 +1,18 @@
 # ===========================
+# Build artifacts
+# ===========================
+build/
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.a
+*.so
+*.d
+
+# ===========================
 # PlatformIO
 # ===========================
 .pio/
@@ -11,22 +25,6 @@
 .vscode/ipch
 
 # ===========================
-# Archivos compilados (C/C++)
-# ===========================
-*.o
-*.elf
-*.bin
-*.hex
-*.map
-*.lst
-*.a
-*.so
-*.d
-
-# Archivos de dependencias generados por Make
-*.d
-
-# ===========================
 # VS Code
 # ===========================
 .vscode/
@@ -37,17 +35,12 @@
 # ===========================
 # Archivos temporales del sistema
 # ===========================
-# macOS
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Linux
 *~
 .directory
 .Trash-*
-
-# Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
@@ -71,7 +64,6 @@ $RECYCLE.BIN/
 *.bak
 *.swp
 *.swo
-*~
 *.tmp
 *.temp
 
@@ -85,17 +77,15 @@ docs/_build/
 # ===========================
 # Archivos específicos del proyecto
 # ===========================
-# Si tienes credenciales o configuraciones locales
 config.local.mk
 secrets.h
 
 # ===========================
-# Python (si usas scripts de automatización)
+# Python
 # ===========================
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 env/
 venv/
@@ -103,7 +93,7 @@ ENV/
 .venv
 
 # ===========================
-# Node.js (si usas herramientas JS)
+# Node.js
 # ===========================
 node_modules/
 npm-debug.log*
