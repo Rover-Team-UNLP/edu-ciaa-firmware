@@ -25,18 +25,22 @@ void uart_mef_update(void)
         uart_init(115200);
         fsm_context.state = UART_STATE_IDLE;
         break;
-
-    case UART_STATE_IDLE:
+        
+        case UART_STATE_IDLE:
         if (uart_is_new_command_available())
         {
             Board_LED_Set(LED_1, true);
             uart_get_received_command(&fsm_context.current_cmd);
-
+            
             if (fsm_context.current_cmd.valid)
                 fsm_context.state = UART_STATE_PROCESS;
             else
                 fsm_context.state = UART_STATE_ERROR;
-        }
+            fsm_context.execution_counter = 0;
+        } 
+        else if (fsm_context.execution_counter % 1000 == 0)
+            uart_request_command(); 
+        fsm_context.execution_counter++; // Only used in idle state
         break;
 
     case UART_STATE_PROCESS:
@@ -45,6 +49,7 @@ void uart_mef_update(void)
 
         Board_LED_Set(LED_1, false);
         uart_request_command();
+        fsm_context.state = UART_STATE_IDLE;
         break;
 
     case UART_STATE_ERROR:

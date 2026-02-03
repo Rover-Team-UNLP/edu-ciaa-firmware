@@ -46,6 +46,7 @@ void UART2_IRQHandler(void)
         if (received_byte == FRAME_START_CHAR)
         {
             rx_write_index = 0;
+            memset((void *)rx_buffer, 0, UART_RX_BUFFER_SIZE);
             rx_buffer[rx_write_index++] = received_byte;
             continue;
         }
@@ -202,22 +203,114 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
     uint16_t cmd_id;
     char start_char, end_char;
 
-    // Formato esperado del ESP32: "S:<COMMAND_TYPE>:<COMMAND_ID>:E"
-    // Ejemplo: "S:0:123:E" para COMMAND_MOVE_FORWARD con ID 123
+#ifdef DEBUG
+    char debug_buf[80];
+    snprintf(debug_buf, sizeof(debug_buf), "[DEBUG] Buffer (len=%u): '", strlen(buffer));
+    uart_send_string_blocking(debug_buf);
+
+    // Imprimir cada byte en hexadecimal para debug
+    for (size_t i = 0; i < strlen(buffer) && i < 20; i++)
+    {
+        snprintf(debug_buf, sizeof(debug_buf), "%c", buffer[i]);
+        uart_send_string_blocking(debug_buf);
+    }
+    uart_send_string_blocking("'\n");
+
+    // Mostrar en hex
+    uart_send_string_blocking("[DEBUG] Hex: ");
+    for (size_t i = 0; i < strlen(buffer) && i < 20; i++)
+    {
+        snprintf(debug_buf, sizeof(debug_buf), "%02X ", (uint8_t)buffer[i]);
+        uart_send_string_blocking(debug_buf);
+    }
+    uart_send_string_blocking("\n");
+#endif
+
+    size_t len = strlen(buffer);
+    if (len < 7 || len > 20)
+    {
+#ifdef DEBUG
+        snprintf(debug_buf, sizeof(debug_buf),
+                 "[DEBUG] FAIL: Invalid length %u (expected 7-20)\n", len);
+        uart_send_string_blocking(debug_buf);
+#endif
+        send_response(RESP_ERR_INVALID_COMMAND, 0);
+        return false;
+    }
+
+    // VALIDACIÓN ADICIONAL: Verificar que el formato sea correcto ANTES de sscanf
+    // Formato: "S:X:Y:E" donde X es 1 dígito y Y es 1-5 dígitos
+    if (buffer[0] != 'S' || buffer[len - 1] != 'E')
+    {
+#ifdef DEBUG
+        snprintf(debug_buf, sizeof(debug_buf),
+                 "[DEBUG] FAIL: Invalid start/end chars: '%c'/'%c'\n",
+                 buffer[0], buffer[len - 1]);
+        uart_send_string_blocking(debug_buf);
+#endif
+        send_response(RESP_ERR_INVALID_COMMAND, 0);
+        return false;
+    }
+
+    // Contar separadores ':'
+    int separator_count = 0;
+    for (size_t i = 0; i < len; i++)
+    {
+        if (buffer[i] == ':')
+        {
+            separator_count++;
+        }
+    }
+
+    if (separator_count != 3)
+    {
+#ifdef DEBUG
+        snprintf(debug_buf, sizeof(debug_buf),
+                 "[DEBUG] FAIL: Expected 3 separators, got %d\n", separator_count);
+        uart_send_string_blocking(debug_buf);
+#endif
+        send_response(RESP_ERR_INVALID_COMMAND, 0);
+        return false;
+    }
+
+    // Ahora sí, parsear con sscanf
     int items = sscanf(buffer, "%c:%hhu:%hu:%c", &start_char, &cmd_type, &cmd_id, &end_char);
+
+#ifdef DEBUG
+    snprintf(debug_buf, sizeof(debug_buf),
+             "[DEBUG] Parsed: items=%d start='%c'(0x%02X) type=%u id=%u end='%c'(0x%02X)\n",
+             items, start_char, (uint8_t)start_char, cmd_type, cmd_id,
+             end_char, (uint8_t)end_char);
+    uart_send_string_blocking(debug_buf);
+#endif
 
     if (items != 4 || start_char != 'S' || end_char != 'E')
     {
+#ifdef DEBUG
+        snprintf(debug_buf, sizeof(debug_buf),
+                 "[DEBUG] FAIL: sscanf validation failed\n");
+        uart_send_string_blocking(debug_buf);
+#endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
     }
 
     // Validar tipo de comando
-    if (cmd_type > COMMAND_MOVE_RIGHT)
+    if (cmd_type > COMMAND_STOP)
     {
+#ifdef DEBUG
+        snprintf(debug_buf, sizeof(debug_buf),
+                 "[DEBUG] FAIL: cmd_type=%u > COMMAND_STOP=%u\n",
+                 cmd_type, COMMAND_STOP);
+        uart_send_string_blocking(debug_buf);
+#endif
         send_response(RESP_ERR_INVALID_COMMAND, cmd_id);
         return false;
     }
+
+#ifdef DEBUG
+    uart_send_string_blocking("[DEBUG] Validation passed!\n");
+#endif
 
     // Guardar información del comando
     command->cmd_type = cmd_type;
@@ -245,6 +338,7 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
     case COMMAND_STOP:
         command->speed_M1 = 0;
         command->speed_M2 = 0;
+        break;
     default:
         send_response(RESP_ERR_INVALID_COMMAND, cmd_id);
         return false;
@@ -281,6 +375,13 @@ static void send_response(uart_resp_id_t resp_type, uint16_t cmd_id)
 #endif
 }
 
+void clean_buffer(void)
+{
+    char clean_buffer[UART_RX_BUFFER_SIZE];
+    strncpy(clean_buffer, (const char *)rx_buffer, rx_write_index);
+    clean_buffer[rx_write_index] = '\0';
+}
+
 #ifdef DEBUG
 /**
  * @brief Convierte tipo de comando a string para debug
@@ -297,6 +398,8 @@ static const char *get_command_name(uint8_t cmd_type)
         return "LEFT";
     case COMMAND_MOVE_RIGHT:
         return "RIGHT";
+    case COMMAND_STOP:
+        return "STOP";
     default:
         return "UNKNOWN";
     }
