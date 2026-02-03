@@ -3,7 +3,7 @@
 static struct
 {
     uart_state_t state;
-    RoverCommand current_cmd;
+    parsed_cmd_t current_cmd;
     uint32_t execution_counter;
 } fsm_context = {
     .state = UART_STATE_INIT,

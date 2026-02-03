@@ -14,7 +14,7 @@
 #define COMMAND_PARAMS_LEN 10
 
 // const char *response_format = "S:%d:%d:E";
-// const char *cmd_format = "S:%d:%d:E";
+// const char *cmd_format = "S:%d:%d:%d:E";
 
 /* IDs de respuestas/envíos desde EDU-CIAA */
 typedef enum
@@ -27,6 +27,7 @@ typedef enum
     RESP_COUNT
 } uart_resp_id_t;
 
+/* Tipos de comando */
 typedef enum
 {
     COMMAND_MOVE_FORWARD = 0,
@@ -36,12 +37,18 @@ typedef enum
     COMMAND_STOP
 } rover_cmd_type_t;
 
+/* Intensidad del comando*/
+typedef enum {
+    INTENSITY_LOW = 0,
+    INTENSITY_MEDIUM,
+    INTENSITY_HIGH,
+} rover_cmd_intensity_t;
+
 typedef struct
 {
     uint16_t id;
-    rover_cmd_type_t cmd;
-    double params[COMMAND_PARAMS_LEN]; // This is a estimate, we should see if it's less or more.
-    uint8_t total_params;
+    rover_cmd_type_t type;
+    rover_cmd_intensity_t intensity
 } data_cmd;
 
 #endif

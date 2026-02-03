@@ -32,12 +32,9 @@
 
 typedef struct
 {
-    uint8_t cmd_type; // Tipo de comando (0-3)
-    uint16_t cmd_id;  // ID del comando para tracking
-    int16_t speed_M1; // Velocidad motor 1 (-100 a 100)
-    int16_t speed_M2; // Velocidad motor 2 (-100 a 100)
-    bool valid;       // Indica si el comando es válido
-} RoverCommand;
+    data_cmd cmd; // El comando en si
+    bool valid;   // Indica si el comando es válido
+} parsed_cmd_t;
 
 // --- Funciones Básicas ---
 
@@ -56,11 +53,11 @@ void uart_init(uint32_t baudRate);
 bool uart_is_new_command_available(void);
 
 /**
- * @brief Parsea el comando al tipo RoverCommand.
+ * @brief Parsea el comando al tipo data_cmd.
  *
  * @param cmd Puntero al struct donde almacenar el comando.
  */
-void uart_get_received_command(RoverCommand *cmd);
+void uart_get_received_command(data_cmd *cmd);
 
 /**
  * @brief Envia una string a UART de forma bloqueante.

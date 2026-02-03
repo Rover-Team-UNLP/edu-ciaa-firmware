@@ -18,10 +18,10 @@
 static volatile uint8_t rx_buffer[UART_RX_BUFFER_SIZE];
 static volatile uint16_t rx_write_index = 0;
 static volatile bool new_command_received = false;
-static RoverCommand last_received_command;
+static parsed_cmd_t last_received_command;
 
 // --- Prototipos Privados ---
-static bool parse_command_string(const char *buffer, RoverCommand *command);
+static bool parse_command_string(const char *buffer, parsed_cmd_t *command);
 static void send_response(uart_resp_id_t resp_type, uint16_t cmd_id);
 
 #ifdef DEBUG
@@ -116,7 +116,7 @@ bool uart_is_new_command_available(void)
     return new_command_received;
 }
 
-void uart_get_received_command(RoverCommand *cmd)
+void uart_get_received_command(parsed_cmd_t *cmd)
 {
     if (cmd == NULL)
         return;
@@ -124,7 +124,7 @@ void uart_get_received_command(RoverCommand *cmd)
     __disable_irq();
     if (new_command_received)
     {
-        memcpy(cmd, (const void *)&last_received_command, sizeof(RoverCommand));
+        memcpy(cmd, (const void *)&last_received_command, sizeof(parsed_cmd_t));
         new_command_received = false;
         last_received_command.valid = false;
     }
@@ -189,10 +189,10 @@ void uart_send_error_invalid_params(uint16_t cmd_id)
 // --- Funciones Privadas ---
 
 /**
- * @brief Parsea comando en formato: S:<COMMAND_ID>:<COMMAND_ID_NUM>:E
- * Ejemplo: "0:123:" (MOVE_FORWARD con ID 123)
+ * @brief Parsea comando en formato: S:<COMMAND_ID>:<COMMAND_INTENSITY>:<COMMAND_ID_NUM>:E
+ * Ejemplo: "0:1:123:" (MOVE_FORWARD INTENSITY_MEDIUM con ID 123)
  */
-static bool parse_command_string(const char *buffer, RoverCommand *command)
+static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
 {
     if (buffer == NULL || command == NULL)
     {
@@ -201,6 +201,7 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
 
     uint8_t cmd_type;
     uint16_t cmd_id;
+    uint8_t cmd_intensity;
     char start_char, end_char;
 
 #ifdef DEBUG
@@ -266,7 +267,7 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
     {
 #ifdef DEBUG
         snprintf(debug_buf, sizeof(debug_buf),
-                 "[DEBUG] FAIL: Expected 3 separators, got %d\n", separator_count);
+                 "[DEBUG] FAIL: Expected 4 separators, got %d\n", separator_count);
         uart_send_string_blocking(debug_buf);
 #endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
@@ -274,17 +275,17 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
     }
 
     // Ahora sí, parsear con sscanf
-    int items = sscanf(buffer, "%c:%hhu:%hu:%c", &start_char, &cmd_type, &cmd_id, &end_char);
+    int items = sscanf(buffer, "%c:%hhu:%hhu:%hu:%c", &start_char, &cmd_type, &cmd_intensity, &cmd_id, &end_char);
 
 #ifdef DEBUG
     snprintf(debug_buf, sizeof(debug_buf),
-             "[DEBUG] Parsed: items=%d start='%c'(0x%02X) type=%u id=%u end='%c'(0x%02X)\n",
-             items, start_char, (uint8_t)start_char, cmd_type, cmd_id,
+             "[DEBUG] Parsed: items=%d start='%c'(0x%02X) type=%u intensity=%u id=%u end='%c'(0x%02X)\n",
+             items, start_char, (uint8_t)start_char, cmd_type, cmd_intensity, cmd_id,
              end_char, (uint8_t)end_char);
     uart_send_string_blocking(debug_buf);
 #endif
 
-    if (items != 4 || start_char != 'S' || end_char != 'E')
+    if (items != 5 || start_char != 'S' || end_char != 'E')
     {
 #ifdef DEBUG
         snprintf(debug_buf, sizeof(debug_buf),
@@ -309,48 +310,22 @@ static bool parse_command_string(const char *buffer, RoverCommand *command)
     }
 
 #ifdef DEBUG
-    uart_send_string_blocking("[DEBUG] Validation passed!\n");
+        uart_send_string_blocking("[DEBUG] Validation passed!\n");
 #endif
 
-    // Guardar información del comando
-    command->cmd_type = cmd_type;
-    command->cmd_id = cmd_id;
-
-    // Mapear comandos numéricos a acciones de motor
-    switch (cmd_type)
-    {
-    case COMMAND_MOVE_FORWARD:
-        command->speed_M1 = 100;
-        command->speed_M2 = 100;
-        break;
-    case COMMAND_MOVE_BACKWARDS:
-        command->speed_M1 = -100;
-        command->speed_M2 = -100;
-        break;
-    case COMMAND_MOVE_LEFT:
-        command->speed_M1 = -50;
-        command->speed_M2 = 50;
-        break;
-    case COMMAND_MOVE_RIGHT:
-        command->speed_M1 = 50;
-        command->speed_M2 = -50;
-        break;
-    case COMMAND_STOP:
-        command->speed_M1 = 0;
-        command->speed_M2 = 0;
-        break;
-    default:
-        send_response(RESP_ERR_INVALID_COMMAND, cmd_id);
-        return false;
-    }
+        // Guardar información del comando
+        command->cmd.type = cmd_type;
+        command->cmd.id = cmd_id;
+        command->cmd.intensity = cmd_intensity;
+    
 
     // Enviar ACK
     send_response(RESP_ACK, cmd_id);
 
 #ifdef DEBUG
     char debug_msg[80];
-    snprintf(debug_msg, sizeof(debug_msg), "[RX] COMMAND: %s (ID:%u) M1:%d M2:%d\n",
-             get_command_name(cmd_type), cmd_id, command->speed_M1, command->speed_M2);
+    snprintf(debug_msg, sizeof(debug_msg), "[RX] COMMAND: %s \t INTENSITY: %s \t (ID:%u) \n",
+             get_command_name(cmd_type), get_command_intensity(cmd_intensity), cmd_id);
     uart_send_string_blocking(debug_msg);
 #endif
 
@@ -400,6 +375,21 @@ static const char *get_command_name(uint8_t cmd_type)
         return "RIGHT";
     case COMMAND_STOP:
         return "STOP";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static const char *get_command_intensity(uint8_t cmd_intensity)
+{
+    switch (cmd_intensity)
+    {
+    case INTENSITY_LOW:
+        return "INTENSITY_LOW";
+    case INTENSITY_MEDIUM:
+        return "INTENSITY_MEDIUM";
+    case INTENSITY_HIGH:
+        return "INTENSITY_HIGH";
     default:
         return "UNKNOWN";
     }
