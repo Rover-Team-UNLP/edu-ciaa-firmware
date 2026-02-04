@@ -13,8 +13,24 @@
 #define RESPONSE_LEN 13
 #define COMMAND_PARAMS_LEN 10
 
-// const char *response_format = "S:%d:%d:E";
-// const char *cmd_format = "S:%d:%d:%d:E";
+/**
+ * Leer!
+ * 
+ * El codigo usa un #define DEBUG que cambia muchos aspectos, entre ellos el parseo de 
+ * comandos por uart. Para debuguear utiliza mascaras y tipos mas simples de tipear
+ * para la persona que esta debugueando. 
+ * 
+ * Comentar el #define DEBUG de uart_comm.c cuando se quiera probar el codigo de micro a micro. 
+ * 
+ * La mascara para los uint8_t es %hhu, y para uint16_t es %hu.
+ */
+
+
+// Formato del comando ESP32 -> CIAA
+const char *cmd_format = "S:%hhu:%hhu:%hu:E";
+
+// Formato de respuesta CIAA -> ESP32
+const char *response_format = "S:%d:%d:E";
 
 /* IDs de respuestas/envíos desde EDU-CIAA */
 typedef enum
