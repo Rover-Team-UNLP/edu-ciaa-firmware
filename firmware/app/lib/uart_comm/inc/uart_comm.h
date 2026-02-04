@@ -57,7 +57,7 @@ bool uart_is_new_command_available(void);
  *
  * @param cmd Puntero al struct donde almacenar el comando.
  */
-void uart_get_received_command(data_cmd *cmd);
+void uart_get_received_command(parsed_cmd_t *cmd);
 
 /**
  * @brief Envia una string a UART de forma bloqueante.

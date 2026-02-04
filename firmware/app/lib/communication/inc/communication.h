@@ -48,7 +48,7 @@ typedef struct
 {
     uint16_t id;
     rover_cmd_type_t type;
-    rover_cmd_intensity_t intensity
+    rover_cmd_intensity_t intensity;
 } data_cmd;
 
 #endif

@@ -27,6 +27,7 @@ static void send_response(uart_resp_id_t resp_type, uint16_t cmd_id);
 #ifdef DEBUG
 static const char *get_command_name(uint8_t cmd_type);
 static const char *get_response_name(uart_resp_id_t resp_type);
+static const char* get_command_intensity(uint8_t cmd_type);
 #endif
 
 // --- Handler de Interrupción ---
@@ -199,9 +200,15 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         return false;
     }
 
-    uint8_t cmd_type;
+#ifdef DEBUG
+    unsigned int cmd_id;
+    unsigned int cmd_type;
+    unsigned int cmd_intensity;
+#else
     uint16_t cmd_id;
+    uint8_t cmd_type;
     uint8_t cmd_intensity;
+#endif
     char start_char, end_char;
 
 #ifdef DEBUG
@@ -263,7 +270,7 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         }
     }
 
-    if (separator_count != 3)
+    if (separator_count != 4)
     {
 #ifdef DEBUG
         snprintf(debug_buf, sizeof(debug_buf),
@@ -274,8 +281,11 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         return false;
     }
 
-    // Ahora sí, parsear con sscanf
+#ifdef DEBUG
+    int items = sscanf(buffer, "%c:%u:%u:%u:%c", &start_char, &cmd_type, &cmd_intensity, &cmd_id, &end_char);
+#else
     int items = sscanf(buffer, "%c:%hhu:%hhu:%hu:%c", &start_char, &cmd_type, &cmd_intensity, &cmd_id, &end_char);
+#endif
 
 #ifdef DEBUG
     snprintf(debug_buf, sizeof(debug_buf),

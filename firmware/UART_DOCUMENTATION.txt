@@ -1,0 +1,129 @@
+# Documentación del Firmware de Comunicación UART para EDU-CIAA NXP
+**Proyecto:** Rover / Robot móvil controlado remotamente
+**Fecha:** 3 de Febrero de 2026
+**Plataforma:** EDU-CIAA NXP (LPC4337, Cortex-M4F/M0)
+**Lenguaje:** C (Standard C99)
+
+## 1. Introducción
+Este documento detalla la arquitectura, diseño e implementación del firmware encargado del subsistema de comunicaciones UART para un robot móvil basado en la placa de desarrollo EDU-CIAA NXP. El objetivo principal del firmware es establecer un canal de comunicación robusto y bidireccional (presumiblemente con un módulo ESP32 u otro controlador de nivel superior) para la recepción de comandos de movimiento y el envío de estados o confirmaciones.
+
+## 2. Arquitectura del Sistema
+El sistema está diseñado de manera modular, separando la lógica de bajo nivel (drivers y protocolo) de la lógica de aplicación (máquina de estados).
+
+### Estructura de Directorios Relevante
+- **`app/src/main.c`**: Punto de entrada, configuración del sistema y SysTick.
+- **`app/lib/uart_mef/`**: Máquina de Estados Finitos que orquesta el flujo de control.
+- **`app/lib/uart_comm/`**: Driver de UART y manejo del protocolo de comunicación (parsing/formatting).
+- **`app/lib/communication/`**: Definiciones comunes (enums, estructuras de datos) compartidas entre módulos.
+
+### Diagrama de Flujo de Datos
+1.  **Recepción (RX)**: Interrupción UART -> Buffer Circular/Lineal -> Detección de Trama -> Flag de "Nuevo Comando".
+2.  **Procesamiento**: Main Loop -> SysTick Handler -> `uart_mef_update()` -> Verificación de Flag -> Parsing -> Acción.
+3.  **Transmisión (TX)**: Generación de respuesta -> Envío bloqueante por UART.
+
+## 3. Configuración de Hardware (HAL)
+
+### UART Interfaz
+- **Periférico**: USART2 (LPC_USART2).
+- **Base de Tiempos**: SysTick a 1000 Hz (1 ms).
+- **Baud Rate**: 115200 bps.
+- **Configuración de Trama**: 8 bits de datos, 1 bit de stop, Sin paridad (8N1).
+- **Pines**:
+  - **TX**: P7_1 (Func6)
+  - **RX**: P7_2 (Func6)
+- **Interrupciones**: Habilitadas para RX (RBRINT). Prioridad NVIC 6.
+
+## 4. Protocolo de Comunicación
+El protocolo es basado en texto ASCII, diseñado para ser legible por humanos y fácil de depurar. Utiliza delimitadores de inicio y fin de trama.
+
+### 4.1. Trama de Comandos (Recepción)
+Formato: `S:<TIPO>:<INTENSIDAD>:<ID>:E`
+
+| Campo | Descripción | Valores Posibles |
+|-------|-------------|------------------|
+| `S` | Carácter de Inicio | 'S' (Start) |
+| `<TIPO>` | Tipo de acción | Entero (0-4). Ver Tabla de Comandos. |
+| `<INTENSIDAD>` | Velocidad/Potencia | Entero (0-2). Ver Tabla de Intensidad. |
+| `<ID>` | Identificador Único | Entero de 16-bits (0-65535). Usado para ACKs. |
+| `E` | Carácter de Fin | 'E' (End) |
+
+**Ejemplo de Trama Válida:**
+`S:0:2:105:E` -> Mover hacia adelante (0), Alta intensidad (2), ID de comando 105.
+
+#### Tabla de Comandos (`rover_cmd_type_t`)
+| Valor | Macro | Acción |
+|-------|-------|--------|
+| 0 | `COMMAND_MOVE_FORWARD` | Mover hacia adelante |
+| 1 | `COMMAND_MOVE_BACKWARDS` | Mover hacia atrás |
+| 2 | `COMMAND_MOVE_LEFT` | Girar a la izquierda |
+| 3 | `COMMAND_MOVE_RIGHT` | Girar a la derecha |
+| 4 | `COMMAND_STOP` | Detener motores |
+
+#### Tabla de Intensidad (`rover_cmd_intensity_t`)
+| Valor | Macro | Descripción |
+|-------|-------|-------------|
+| 0 | `INTENSITY_LOW` | Baja velocidad |
+| 1 | `INTENSITY_MEDIUM` | Velocidad media |
+| 2 | `INTENSITY_HIGH` | Alta velocidad |
+
+### 4.2. Trama de Respuesta (Transmisión)
+Formato: `S:<RESP_TYPE>:<ID>:E`
+
+| Campo | Descripción | Valores Posibles |
+|-------|-------------|------------------|
+| `S` | Carácter de Inicio | 'S' |
+| `<RESP_TYPE>` | Tipo de Respuesta | Entero (0-4). Ver Tabla de Respuestas. |
+| `<ID>` | ID del comando referido | Entero de 16-bits. 0 si es un evento general. |
+| `E` | Carácter de Fin | 'E' |
+
+#### Tabla de Respuestas (`uart_resp_id_t`)
+| Valor | Macro | Descripción |
+|-------|-------|-------------|
+| 0 | `RESP_ACK` | Comando recibido y validado correctamente. |
+| 1 | `RESP_READY` | El sistema está listo para recibir comandos (Heartbeat). |
+| 2 | `RESP_NACK` | Comando rechazado genérico. |
+| 3 | `RESP_ERR_INVALID_COMMAND` | Error de sintaxis o comando desconocido. |
+| 4 | `RESP_ERR_INVALID_PARAMS` | Parámetros fuera de rango. |
+
+## 5. Implementación de Software
+
+### 5.1. Módulo `uart_comm`
+Encargado del manejo directo con el hardware y validación sintáctica.
+
+- **Manejo de Buffer RX**:
+  - Utiliza un buffer estático `rx_buffer[64]`.
+  - La interrupción `UART2_IRQHandler` llena este buffer byte a byte.
+  - Detecta 'S' para reiniciar el índice del buffer y 'E' para finalizar la captura.
+  - Una vez detectado el fin de trama, llama a `parse_command_string`.
+
+- **Parsing (`parse_command_string`)**:
+  - Verifica longitud mínima/máxima.
+  - Valida delimitadores 'S' y 'E'.
+  - Cuenta separadores ':' (debe haber 3).
+  - Utiliza `sscanf` con formato `"%c:%hhu:%hhu:%hu:%c"` para extraer los datos.
+  - Valida que el `cmd_type` esté dentro de los rangos definidos.
+  - Si es válido, emite un `RESP_ACK` inmediatamente.
+  - Si es inválido, emite `RESP_ERR_INVALID_COMMAND`.
+
+### 5.2. Módulo `uart_mef` (Máquina de Estados)
+Controla el flujo de alto nivel de la aplicación, ejecutada periódicamente desde el `SysTick_Handler`.
+
+#### Estados:
+1.  **UART_STATE_INIT**:
+    - Inicializa la UART (115200 bauds).
+    - Transiciona a `IDLE`.
+2.  **UART_STATE_IDLE**:
+    - Verifica si hay nuevos comandos disponibles (`uart_is_new_command_available`).
+    - Si llega un comando: lo recupera, valida y pasa a `PROCESS` (si es válido) o `ERROR`. Activa LED1.
+    - **Keep-alive**: Cada 1000 ciclos de ejecución (aprox. 1 segundo), envía `RESP_READY` para indicar al controlador maestro que la CIAA sigue operativa.
+3.  **UART_STATE_PROCESS**:
+    - *Estado actual*: Apaga LED1, solicita nuevo comando y vuelve a IDLE.
+    - *Funcionalidad pendiente*: Aquí se debe implementar la llamada a la capa de control de motores (`motor_lib`).
+4.  **UART_STATE_ERROR**:
+    - *Estado actual*: Apaga LED1, solicita nuevo comando y vuelve a IDLE.
+    - *Funcionalidad pendiente*: Debería detener los motores por seguridad.
+
+## 6. Consideraciones y Trabajo Futuro
+- **Control de Motores**: Actualmente los estados `PROCESS` y `ERROR` tienen `TODOs` para la integración con los drivers de motor.
+- **Manejo de Overflow del Buffer**: Se implementa una protección básica en la ISR; si el buffer se llena sin recibir 'E', se descarta la trama y se envía error.
+- **Debug**: El código contiene múltiples bloques `#ifdef DEBUG` que permiten trazar la ejecución y ver el contenido crudo de los buffers por la misma UART (cuidado: esto puede interferir con el protocolo si no se maneja en un canal separado o si el receptor no lo filtra).
