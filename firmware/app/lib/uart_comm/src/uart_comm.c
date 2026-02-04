@@ -6,6 +6,14 @@
 #include <stdio.h>
 #include <cmsis_43xx.h>
 
+/**
+ * Libreria para comunicacion por uart.
+ * 
+ * Para debug -> USART2
+ * 
+ * Para deploy -> USART3
+ */
+
 // --- Debug ---
 #define DEBUG // Descomentar para habilitar logs de debug
 
