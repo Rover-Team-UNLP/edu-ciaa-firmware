@@ -22,7 +22,7 @@ int main(void)
    Board_Init();
    SystemCoreClockUpdate();
    SysTick_Config(SystemCoreClock / 1000); /* Interrupción cada 1 ms */
-   Motor_init();
+   Motor_Init();
    uart_mef_init();
 
 

@@ -27,10 +27,10 @@
 
 
 // Formato del comando ESP32 -> CIAA
-const char *cmd_format = "S:%hhu:%hhu:%hu:E";
+// const char *cmd_format = "S:%hhu:%hhu:%hu:E";
 
 // Formato de respuesta CIAA -> ESP32
-const char *response_format = "S:%d:%d:E";
+// const char *response_format = "S:%d:%d:E";
 
 /* IDs de respuestas/envíos desde EDU-CIAA */
 typedef enum

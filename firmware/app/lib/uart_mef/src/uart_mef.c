@@ -47,6 +47,50 @@ void uart_mef_update(void)
         // TODO procesar el comando pasandoselo a los motores
         // El ultimo comando recibido esta en fsm_context.current_cmd
 
+        uint16_t motor1 = 0, motor2 = 0;
+        if (fsm_context.current_cmd.cmd.type != COMMAND_STOP) {
+            switch (fsm_context.current_cmd.cmd.intensity)
+            {
+            case INTENSITY_LOW:
+                motor1 = 33;
+                motor2 = 33;
+                break;
+            case INTENSITY_MEDIUM:
+                motor1 = 66;
+                motor2 = 66;
+                break;
+            case INTENSITY_HIGH:
+                motor1 = 100;
+                motor2 = 100;
+                break;
+            default:
+                break;
+            }
+        }
+
+        // NOTA: motor1 = izquierda
+        //       motor2 = derecha
+        switch (fsm_context.current_cmd.cmd.type)
+        {
+        case COMMAND_MOVE_FORWARD:
+            Motor_SetSpeed(motor1, motor2);
+            break;
+        case COMMAND_MOVE_BACKWARDS:
+            Motor_SetSpeed(-motor1, -motor2);
+            break;
+        case COMMAND_MOVE_LEFT:
+            Motor_SetSpeed(motor1, -motor2);
+            break;
+        case COMMAND_MOVE_RIGHT:
+            Motor_SetSpeed(-motor1, motor2);
+            break;
+        case COMMAND_STOP:
+            Motor_SetSpeed(0, 0);
+            break;
+        default:
+            break;
+        }
+
         Board_LED_Set(LED_1, false);
         uart_request_command();
         fsm_context.state = UART_STATE_IDLE;

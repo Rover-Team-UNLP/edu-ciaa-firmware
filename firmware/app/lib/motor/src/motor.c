@@ -122,7 +122,7 @@ static void Motor_SetRaw(uint8_t index, int16_t speed,
     uint32_t ticks = Chip_SCTPWM_PercentageToTicks(LPC_SCT, (uint8_t)speed);
     Chip_SCTPWM_SetDutyCycle(LPC_SCT, index, ticks);
 }
-static void Motor_emergency_stop(void){
+void Motor_emergency_stop(void){
         Chip_GPIO_SetPinState(LPC_GPIO_PORT, M1_IN1_GPIO_P, M1_IN1_GPIO_B, true);
         Chip_GPIO_SetPinState(LPC_GPIO_PORT, M1_IN2_GPIO_P, M1_IN2_GPIO_B, true);
         
