@@ -31,4 +31,7 @@ void Motor_SetSpeed(int16_t speed_left, int16_t speed_right);
  */
 void Motor_Stop(void);
 
-#endif 
+
+static void Motor_emergency_stop(void);
+
+#endif

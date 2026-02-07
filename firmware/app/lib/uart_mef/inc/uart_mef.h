@@ -1,5 +1,6 @@
 #include "uart_comm.h"
 #include "board.h"
+#include <motor.h>
 
 typedef enum
 {

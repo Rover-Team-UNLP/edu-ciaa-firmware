@@ -3,6 +3,7 @@
 #include "uart_comm.h"
 #include "uart_mef.h"
 #include <string.h>
+#include <motor.h>
 
 #define TICK_DELAY_MS 500
 
@@ -21,7 +22,9 @@ int main(void)
    Board_Init();
    SystemCoreClockUpdate();
    SysTick_Config(SystemCoreClock / 1000); /* Interrupción cada 1 ms */
+   Motor_init();
    uart_mef_init();
+
 
    while (1)
    {

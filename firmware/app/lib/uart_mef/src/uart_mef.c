@@ -54,7 +54,7 @@ void uart_mef_update(void)
 
     case UART_STATE_ERROR:
         Board_LED_Set(LED_1, false);
-        // TODO parar motores
+        Motor_emergency_stop();
         uart_request_command();
         fsm_context.state = UART_STATE_IDLE;
         break;
