@@ -41,6 +41,11 @@ void uart_mef_update(void)
         else if (fsm_context.execution_counter % 1000 == 0)
             uart_request_command(); 
         fsm_context.execution_counter++; // Only used in idle state
+
+        Chip_SCU_PinMuxSet(6, 8, SCU_MODE_INACT | SCU_MODE_FUNC4);
+        Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 16);
+        Chip_SCU_PinMuxSet(6, 10, SCU_MODE_INACT | SCU_MODE_FUNC0);
+        Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 3, 6);
         break;
 
     case UART_STATE_PROCESS:
@@ -66,6 +71,12 @@ void uart_mef_update(void)
             default:
                 break;
             }
+            Chip_GPIO_SetPinState(LPC_GPIO_PORT, RED_LED, 0);
+            Chip_GPIO_SetPinState(LPC_GPIO_PORT, GREEN_LED, 1);
+        }
+        else {
+            Chip_GPIO_SetPinState(LPC_GPIO_PORT, RED_LED, 1);
+            Chip_GPIO_SetPinState(LPC_GPIO_PORT, GREEN_LED, 0);
         }
 
         // NOTA: motor1 = izquierda

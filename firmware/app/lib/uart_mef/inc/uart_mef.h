@@ -2,6 +2,10 @@
 #include "board.h"
 #include "motor.h"
 
+#define RED_LED 5, 16
+
+#define GREEN_LED 3, 6
+
 typedef enum
 {
     UART_STATE_INIT,
@@ -14,3 +18,4 @@ typedef enum
 
 void uart_mef_update(void);
 void uart_mef_init(void);
+
