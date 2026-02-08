@@ -8,14 +8,14 @@
 
 /**
  * Libreria para comunicacion por uart.
- * 
+ *
  * Para debug -> USART2
- * 
+ *
  * Para deploy -> USART3
  */
 
 // --- Debug ---
-#define DEBUG // Descomentar para habilitar logs de debug
+// #define DEBUG // Descomentar para habilitar logs de debug
 
 // --- Definiciones del Protocolo (Compatible con ESP32) ---
 #define FRAME_START_CHAR 'S'
@@ -35,15 +35,15 @@ static void send_response(uart_resp_id_t resp_type, uint16_t cmd_id);
 #ifdef DEBUG
 static const char *get_command_name(uint8_t cmd_type);
 static const char *get_response_name(uart_resp_id_t resp_type);
-static const char* get_command_intensity(uint8_t cmd_type);
+static const char *get_command_intensity(uint8_t cmd_type);
 #endif
 
 // --- Handler de Interrupción ---
-void UART2_IRQHandler(void)
+void UART3_IRQHandler(void)
 {
-    while (Chip_UART_ReadLineStatus(LPC_USART2) & UART_LSR_RDR)
+    while (Chip_UART_ReadLineStatus(LPC_USART3) & UART_LSR_RDR)
     {
-        uint8_t received_byte = Chip_UART_ReadByte(LPC_USART2);
+        uint8_t received_byte = Chip_UART_ReadByte(LPC_USART3);
 
         // Ignorar si el comando anterior no fue procesado
         if (new_command_received)
@@ -101,12 +101,12 @@ void uart_init(uint32_t baudRate)
     Chip_SCU_PinMuxSet(7, 1, (SCU_MODE_PULLDOWN | SCU_MODE_FUNC6));
     Chip_SCU_PinMuxSet(7, 2, (SCU_MODE_INACT | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC6));
 
-    Chip_UART_Init(LPC_USART2);
-    Chip_UART_SetBaudFDR(LPC_USART2, baudRate);
-    Chip_UART_ConfigData(LPC_USART2, (UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS));
-    Chip_UART_TXEnable(LPC_USART2);
-    Chip_UART_SetupFIFOS(LPC_USART2, (UART_FCR_FIFO_EN | UART_FCR_RX_RS | UART_FCR_TX_RS | UART_FCR_TRG_LEV0));
-    Chip_UART_IntEnable(LPC_USART2, UART_IER_RBRINT);
+    Chip_UART_Init(LPC_USART3);
+    Chip_UART_SetBaudFDR(LPC_USART3, baudRate);
+    Chip_UART_ConfigData(LPC_USART3, (UART_LCR_WLEN8 | UART_LCR_SBS_1BIT | UART_LCR_PARITY_DIS));
+    Chip_UART_TXEnable(LPC_USART3);
+    Chip_UART_SetupFIFOS(LPC_USART3, (UART_FCR_FIFO_EN | UART_FCR_RX_RS | UART_FCR_TX_RS | UART_FCR_TRG_LEV0));
+    Chip_UART_IntEnable(LPC_USART3, UART_IER_RBRINT);
     NVIC_SetPriority(USART2_IRQn, 6);
     NVIC_EnableIRQ(USART2_IRQn);
 
@@ -146,7 +146,7 @@ void uart_get_received_command(parsed_cmd_t *cmd)
 
 void uart_send_string_blocking(const char *str)
 {
-    Chip_UART_SendBlocking(LPC_USART2, str, strlen(str));
+    Chip_UART_SendBlocking(LPC_USART3, str, strlen(str));
 }
 
 // --- Funciones Públicas de Alto Nivel ---
@@ -328,14 +328,13 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
     }
 
 #ifdef DEBUG
-        uart_send_string_blocking("[DEBUG] Validation passed!\n");
+    uart_send_string_blocking("[DEBUG] Validation passed!\n");
 #endif
 
-        // Guardar información del comando
-        command->cmd.type = cmd_type;
-        command->cmd.id = cmd_id;
-        command->cmd.intensity = cmd_intensity;
-    
+    // Guardar información del comando
+    command->cmd.type = cmd_type;
+    command->cmd.id = cmd_id;
+    command->cmd.intensity = cmd_intensity;
 
     // Enviar ACK
     send_response(RESP_ACK, cmd_id);
