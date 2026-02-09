@@ -15,7 +15,7 @@
  */
 
 // --- Debug ---
-// #define DEBUG // Descomentar para habilitar logs de debug
+#define DEBUG // Descomentar para habilitar logs de debug
 
 // --- Definiciones del Protocolo (Compatible con ESP32) ---
 #define FRAME_START_CHAR 'S'
@@ -107,8 +107,8 @@ void uart_init(uint32_t baudRate)
     Chip_UART_TXEnable(LPC_USART3);
     Chip_UART_SetupFIFOS(LPC_USART3, (UART_FCR_FIFO_EN | UART_FCR_RX_RS | UART_FCR_TX_RS | UART_FCR_TRG_LEV0));
     Chip_UART_IntEnable(LPC_USART3, UART_IER_RBRINT);
-    NVIC_SetPriority(USART2_IRQn, 6);
-    NVIC_EnableIRQ(USART2_IRQn);
+    NVIC_SetPriority(USART3_IRQn, 6);
+    NVIC_EnableIRQ(USART3_IRQn);
 
     rx_write_index = 0;
     new_command_received = false;
