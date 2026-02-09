@@ -54,6 +54,10 @@ static void Motor_SetRaw(uint8_t index, int16_t speed,
 
 void Motor_Init(void)
 {
+    //desactivo el pin GPIO0
+    Chip_SCU_PinMuxSet(0x6, 1, (SCU_MODE_INBUFF_EN | SCU_MODE_PULLUP | SCU_MODE_FUNC0)); // P6_1 como GPIO
+    Chip_GPIO_SetDir(LPC_GPIO_PORT, 3, (1 << 0), 0);                                     // 0 = Entrada (Input)
+
     Chip_SCU_PinMuxSet(M1_IN1_SCU_PORT, M1_IN1_SCU_PIN, (SCU_MODE_INACT | M1_IN1_FUNC));
     Chip_SCU_PinMuxSet(M1_IN2_SCU_PORT, M1_IN2_SCU_PIN, (SCU_MODE_INACT | M1_IN2_FUNC));
     Chip_SCU_PinMuxSet(M2_IN1_SCU_PORT, M2_IN1_SCU_PIN, (SCU_MODE_INACT | M2_IN1_FUNC));
@@ -104,11 +108,11 @@ static void Motor_SetRaw(uint8_t index, int16_t speed,
         Chip_GPIO_SetPinState(LPC_GPIO_PORT, p2, b2, false);
     }
     
-    uint8_t sct_output = (index == 1) ? M1_PWM_SCT_OUT : M2_PWM_SCT_OUT;
+    
     uint32_t duty_ticks = (Chip_SCTPWM_GetTicksPerCycle(LPC_SCT) * duty) / 100;
     
-    Chip_SCTPWM_SetDutyCycle(LPC_SCT, sct_output, duty_ticks);
-}
+    Chip_SCTPWM_SetDutyCycle(LPC_SCT, index, duty_ticks);
+}   
 
 void Motor_emergency_stop(void)
 {
