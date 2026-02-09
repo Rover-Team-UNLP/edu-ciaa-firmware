@@ -24,9 +24,14 @@ void uart_mef_update(void)
     case UART_STATE_INIT:
         uart_init(115200);
         fsm_context.state = UART_STATE_IDLE;
+        
+        Chip_SCU_PinMuxSet(6, 8, SCU_MODE_INACT | SCU_MODE_FUNC4);
+        Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 16);
+        Chip_SCU_PinMuxSet(6, 10, SCU_MODE_INACT | SCU_MODE_FUNC0);
+        Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 3, 6);
         break;
         
-        case UART_STATE_IDLE:
+    case UART_STATE_IDLE:
         if (uart_is_new_command_available())
         {
             Board_LED_Set(LED_1, true);
@@ -42,13 +47,11 @@ void uart_mef_update(void)
             uart_request_command(); 
         fsm_context.execution_counter++; // Only used in idle state
 
-        Chip_SCU_PinMuxSet(6, 8, SCU_MODE_INACT | SCU_MODE_FUNC4);
-        Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 16);
-        Chip_SCU_PinMuxSet(6, 10, SCU_MODE_INACT | SCU_MODE_FUNC0);
-        Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 3, 6);
+      
         break;
 
     case UART_STATE_PROCESS:
+     {   
         // TODO procesar el comando pasandoselo a los motores
         // El ultimo comando recibido esta en fsm_context.current_cmd
 
@@ -106,6 +109,7 @@ void uart_mef_update(void)
         uart_request_command();
         fsm_context.state = UART_STATE_IDLE;
         break;
+    }
 
     case UART_STATE_ERROR:
         Board_LED_Set(LED_1, false);
