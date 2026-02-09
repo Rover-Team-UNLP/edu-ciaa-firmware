@@ -4,12 +4,13 @@ APP=rover_firmware
 MODULES=app \
         app/lib/uart_comm \
         app/lib/uart_mef \
+        app/lib/uart_debug \
         app/lib/communication \
         app/lib/motor \
         lpc_chip_43xx \
         lpc_board_ciaa_edu_4337
 
-DEFINES=CORE_M4 __USE_LPCOPEN __USE_NEWLIB
+DEFINES=CORE_M4 __USE_LPCOPEN __USE_NEWLIB UART_DEBUG_ENABLE
 
 VERBOSE=n
 OPT=g

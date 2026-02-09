@@ -1,4 +1,5 @@
 #include "uart_mef.h"
+#include "uart_debug.h"
 
 static struct
 {
@@ -24,6 +25,9 @@ void uart_mef_update(void)
     case UART_STATE_INIT:
         uart_init(115200);
         fsm_context.state = UART_STATE_IDLE;
+#ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("FSM INIT");
+#endif
         
         Chip_SCU_PinMuxSet(6, 8, SCU_MODE_INACT | SCU_MODE_FUNC4);
         Chip_GPIO_SetPinDIROutput(LPC_GPIO_PORT, 5, 16);
@@ -38,13 +42,28 @@ void uart_mef_update(void)
             uart_get_received_command(&fsm_context.current_cmd);
             
             if (fsm_context.current_cmd.valid)
+            {
                 fsm_context.state = UART_STATE_PROCESS;
+ #ifdef UART_DEBUG_ENABLE
+                UART_DEBUG_LOG_LN("FSM CMD RECEIVED");
+ #endif
+            }
             else
+            {
                 fsm_context.state = UART_STATE_ERROR;
+ #ifdef UART_DEBUG_ENABLE
+                UART_DEBUG_LOG_LN("FSM CMD INVALID");
+ #endif
+            }
             fsm_context.execution_counter = 0;
         } 
-        else if (fsm_context.execution_counter % 1000 == 0)
+        else if (fsm_context.execution_counter % 2000 == 0)
+        {
             uart_request_command(); 
+#ifdef UART_DEBUG_ENABLE
+            UART_DEBUG_LOG_LN("REQUEST COMMAND SENT");
+#endif
+        }
         fsm_context.execution_counter++; // Only used in idle state
 
       
@@ -108,6 +127,9 @@ void uart_mef_update(void)
         Board_LED_Set(LED_1, false);
         uart_request_command();
         fsm_context.state = UART_STATE_IDLE;
+    #ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("FSM CMD PROCESSED");
+    #endif
         break;
     }
 
@@ -116,6 +138,9 @@ void uart_mef_update(void)
         Motor_emergency_stop();
         uart_request_command();
         fsm_context.state = UART_STATE_IDLE;
+#ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("FSM ERROR");
+#endif
         break;
 
     default:

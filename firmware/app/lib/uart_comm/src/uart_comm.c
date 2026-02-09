@@ -1,4 +1,5 @@
 #include "uart_comm.h"
+#include "uart_debug.h"
 #include "chip.h"
 #include "board.h"
 #include <string.h>
@@ -15,7 +16,7 @@
  */
 
 // --- Debug ---
-#define DEBUG // Descomentar para habilitar logs de debug
+// #define DEBUG // Descomentar para habilitar logs de debug
 
 // --- Definiciones del Protocolo (Compatible con ESP32) ---
 #define FRAME_START_CHAR 'S'
@@ -87,6 +88,9 @@ void UART3_IRQHandler(void)
         {
             send_response(RESP_ERR_INVALID_COMMAND, 0);
             rx_write_index = 0;
+#ifdef UART_DEBUG_ENABLE
+            UART_DEBUG_LOG_LN("UART3 RX overflow");
+#endif
 #ifdef DEBUG
             uart_send_string_blocking("[ERROR] Buffer RX lleno - trama descartada\n");
 #endif
@@ -250,6 +254,9 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
                  "[DEBUG] FAIL: Invalid length %u (expected 7-20)\n", len);
         uart_send_string_blocking(debug_buf);
 #endif
+    #ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("UART3 RX invalid length");
+    #endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
     }
@@ -264,6 +271,9 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
                  buffer[0], buffer[len - 1]);
         uart_send_string_blocking(debug_buf);
 #endif
+    #ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("UART3 RX invalid frame");
+    #endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
     }
@@ -285,6 +295,9 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
                  "[DEBUG] FAIL: Expected 4 separators, got %d\n", separator_count);
         uart_send_string_blocking(debug_buf);
 #endif
+    #ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("UART3 RX separator error");
+    #endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
     }
@@ -310,6 +323,9 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
                  "[DEBUG] FAIL: sscanf validation failed\n");
         uart_send_string_blocking(debug_buf);
 #endif
+    #ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("UART3 RX parse error");
+    #endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
     }
@@ -323,6 +339,9 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
                  cmd_type, COMMAND_STOP);
         uart_send_string_blocking(debug_buf);
 #endif
+    #ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("UART3 RX invalid type");
+    #endif
         send_response(RESP_ERR_INVALID_COMMAND, cmd_id);
         return false;
     }
@@ -344,6 +363,16 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
     snprintf(debug_msg, sizeof(debug_msg), "[RX] COMMAND: %s \t INTENSITY: %s \t (ID:%u) \n",
              get_command_name(cmd_type), get_command_intensity(cmd_intensity), cmd_id);
     uart_send_string_blocking(debug_msg);
+#endif
+
+#ifdef UART_DEBUG_ENABLE
+    UART_DEBUG_LOG("UART3 RX OK id=");
+    UART_DEBUG_LOG_U32(cmd_id);
+    UART_DEBUG_LOG(" type=");
+    UART_DEBUG_LOG_U32(cmd_type);
+    UART_DEBUG_LOG(" intensity=");
+    UART_DEBUG_LOG_U32(cmd_intensity);
+    UART_DEBUG_LOG("\r\n");
 #endif
 
     return true;

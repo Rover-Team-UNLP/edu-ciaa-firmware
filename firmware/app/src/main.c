@@ -2,6 +2,7 @@
 #include "communication.h"
 #include "uart_comm.h"
 #include "uart_mef.h"
+#include "uart_debug.h"
 #include <string.h>
 #include <motor.h>
 
@@ -22,6 +23,7 @@ int main(void)
    Board_Init();
    SystemCoreClockUpdate();
    SysTick_Config(SystemCoreClock / 1000); /* Interrupción cada 1 ms */
+   uart_debug_init(UART_DEBUG_BAUD_RATE);
    Motor_Init();
    uart_mef_init();
 
