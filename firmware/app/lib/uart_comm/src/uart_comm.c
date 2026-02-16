@@ -89,7 +89,7 @@ void UART3_IRQHandler(void)
             send_response(RESP_ERR_INVALID_COMMAND, 0);
             rx_write_index = 0;
 #ifdef UART_DEBUG_ENABLE
-            UART_DEBUG_LOG_LN("UART3 RX overflow");
+            UART_DEBUG_LOG_LN("UART2 RX overflow");
 #endif
 #ifdef DEBUG
             uart_send_string_blocking("[ERROR] Buffer RX lleno - trama descartada\n");
@@ -324,7 +324,7 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         uart_send_string_blocking(debug_buf);
 #endif
     #ifdef UART_DEBUG_ENABLE
-        UART_DEBUG_LOG_LN("UART3 RX parse error");
+        UART_DEBUG_LOG_LN("UART2 RX parse error");
     #endif
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
@@ -340,7 +340,7 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         uart_send_string_blocking(debug_buf);
 #endif
     #ifdef UART_DEBUG_ENABLE
-        UART_DEBUG_LOG_LN("UART3 RX invalid type");
+        UART_DEBUG_LOG_LN("UART2 RX invalid type");
     #endif
         send_response(RESP_ERR_INVALID_COMMAND, cmd_id);
         return false;

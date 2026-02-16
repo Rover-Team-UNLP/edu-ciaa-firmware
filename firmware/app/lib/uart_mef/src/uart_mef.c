@@ -103,18 +103,23 @@ void uart_mef_update(void)
         switch (fsm_context.current_cmd.cmd.type)
         {
         case COMMAND_MOVE_FORWARD:
+            UART_DEBUG_LOG_LN("COMMAND RECEIVED: FORWARD\n");
             Motor_SetSpeed(motor1, motor2);
             break;
         case COMMAND_MOVE_BACKWARDS:
+            UART_DEBUG_LOG_LN("COMMAND RECEIVED: BACKWARDS\n");
             Motor_SetSpeed(-motor1, -motor2);
             break;
         case COMMAND_MOVE_LEFT:
+            UART_DEBUG_LOG_LN("COMMAND RECEIVED: LEFT\n");
             Motor_SetSpeed(motor1, -motor2);
             break;
         case COMMAND_MOVE_RIGHT:
+            UART_DEBUG_LOG_LN("COMMAND RECEIVED: RIGHT\n");
             Motor_SetSpeed(-motor1, motor2);
             break;
         case COMMAND_STOP:
+            UART_DEBUG_LOG_LN("COMMAND RECEIVED: STOP\n");
             Motor_SetSpeed(0, 0);
             break;
         default:
