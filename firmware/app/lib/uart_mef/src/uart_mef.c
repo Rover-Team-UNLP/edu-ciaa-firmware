@@ -71,9 +71,6 @@ void uart_mef_update(void)
 
     case UART_STATE_PROCESS:
      {   
-        // TODO procesar el comando pasandoselo a los motores
-        // El ultimo comando recibido esta en fsm_context.current_cmd
-
         uint16_t motor1 = 0, motor2 = 0;
         if (fsm_context.current_cmd.cmd.type != COMMAND_STOP) {
             switch (fsm_context.current_cmd.cmd.intensity)
@@ -125,6 +122,7 @@ void uart_mef_update(void)
         }
 
         Board_LED_Set(LED_1, false);
+        
         uart_request_command();
         fsm_context.state = UART_STATE_IDLE;
     #ifdef UART_DEBUG_ENABLE
