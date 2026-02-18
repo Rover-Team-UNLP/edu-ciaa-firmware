@@ -86,8 +86,6 @@ void Motor_SetSpeed(int16_t speed_m1, int16_t speed_m2)
 {
     Motor_SetRaw(M1_PWM_INDEX, speed_m1, M1_IN1_GPIO_P, M1_IN1_GPIO_B, M1_IN2_GPIO_P, M1_IN2_GPIO_B);
     Motor_SetRaw(M2_PWM_INDEX, speed_m2, M2_IN1_GPIO_P, M2_IN1_GPIO_B, M2_IN2_GPIO_P, M2_IN2_GPIO_B);
-    UART_DEBUG_LOG_LN("Motor 1: %d", speed_m1);
-    UART_DEBUG_LOG_LN("Motor 2: %d", speed_m2);
 }
 
 static void Motor_SetRaw(uint8_t index, int16_t speed, 

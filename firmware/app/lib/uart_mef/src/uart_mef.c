@@ -1,21 +1,49 @@
 #include "uart_mef.h"
 #include "uart_debug.h"
 
+#define UART_MEF_REQUEST_COMMAND_TICKS 50U
+#define UART_MEF_TIMEOUT_FB_TICKS 50U
+#define UART_MEF_TIMEOUT_TURN_TICKS 25U
+
+static uint32_t get_motion_timeout_ticks(uint8_t cmd_type)
+{
+    switch (cmd_type)
+    {
+    case COMMAND_MOVE_FORWARD:
+    case COMMAND_MOVE_BACKWARDS:
+        return UART_MEF_TIMEOUT_FB_TICKS;
+    case COMMAND_MOVE_LEFT:
+    case COMMAND_MOVE_RIGHT:
+        return UART_MEF_TIMEOUT_TURN_TICKS;
+    default:
+        return 0U;
+    }
+}
+
 static struct
 {
     uart_state_t state;
     parsed_cmd_t current_cmd;
-    uint32_t execution_counter;
+    uint32_t request_counter;
+    uint32_t motion_inactivity_counter;
+    uint8_t motion_timeout_active;
+    uint8_t active_motion_type;
 } fsm_context = {
     .state = UART_STATE_INIT,
     .current_cmd = {0},
-    .execution_counter = 0,
+    .request_counter = 0,
+    .motion_inactivity_counter = 0,
+    .motion_timeout_active = 0,
+    .active_motion_type = COMMAND_STOP,
 };
 
 void uart_mef_init(void)
 {
     fsm_context.state = UART_STATE_INIT;
-    fsm_context.execution_counter = 0;
+    fsm_context.request_counter = 0;
+    fsm_context.motion_inactivity_counter = 0;
+    fsm_context.motion_timeout_active = 0;
+    fsm_context.active_motion_type = COMMAND_STOP;
 }
 
 void uart_mef_update(void)
@@ -55,18 +83,41 @@ void uart_mef_update(void)
                 UART_DEBUG_LOG_LN("FSM CMD INVALID");
  #endif
             }
-            fsm_context.execution_counter = 0;
+            fsm_context.request_counter = 0;
+            fsm_context.motion_inactivity_counter = 0;
         } 
-        else if (fsm_context.execution_counter % 2000 == 0)
+        else
         {
-            uart_request_command(); 
-#ifdef UART_DEBUG_ENABLE
-            UART_DEBUG_LOG_LN("REQUEST COMMAND SENT");
-#endif
-        }
-        fsm_context.execution_counter++; // Only used in idle state
+            if (fsm_context.motion_timeout_active)
+            {
+                uint32_t timeout_ticks = get_motion_timeout_ticks(fsm_context.active_motion_type);
 
-      
+                if (timeout_ticks > 0U)
+                {
+                    fsm_context.motion_inactivity_counter++;
+
+                    if (fsm_context.motion_inactivity_counter >= timeout_ticks)
+                    {
+                        Motor_SetSpeed(0, 0);
+                        fsm_context.motion_timeout_active = 0;
+                        fsm_context.motion_inactivity_counter = 0;
+#ifdef UART_DEBUG_ENABLE
+                        UART_DEBUG_LOG_LN("MOTION TIMEOUT -> STOP");
+#endif
+                    }
+                }
+            }
+
+            fsm_context.request_counter++;
+            if (fsm_context.request_counter >= UART_MEF_REQUEST_COMMAND_TICKS)
+            {
+                uart_request_command();
+                fsm_context.request_counter = 0;
+#ifdef UART_DEBUG_ENABLE
+                UART_DEBUG_LOG_LN("REQUEST COMMAND SENT");
+#endif
+            }
+        }
         break;
 
     case UART_STATE_PROCESS:
@@ -78,14 +129,17 @@ void uart_mef_update(void)
             case INTENSITY_LOW:
                 motor1 = 33;
                 motor2 = 33;
+                UART_DEBUG_LOG_LN("Motor 1 & 2: 33");
                 break;
             case INTENSITY_MEDIUM:
                 motor1 = 66;
                 motor2 = 66;
+                UART_DEBUG_LOG_LN("Motor 1 & 2: 66");
                 break;
             case INTENSITY_HIGH:
                 motor1 = 100;
                 motor2 = 100;
+                UART_DEBUG_LOG_LN("Motor 1 & 2: 100");
                 break;
             default:
                 break;
@@ -105,30 +159,47 @@ void uart_mef_update(void)
         case COMMAND_MOVE_FORWARD:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: FORWARD\n");
             Motor_SetSpeed(motor1, motor2);
+            fsm_context.motion_timeout_active = 1;
+            fsm_context.active_motion_type = COMMAND_MOVE_FORWARD;
+            fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_MOVE_BACKWARDS:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: BACKWARDS\n");
             Motor_SetSpeed(-motor1, -motor2);
+            fsm_context.motion_timeout_active = 1;
+            fsm_context.active_motion_type = COMMAND_MOVE_BACKWARDS;
+            fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_MOVE_LEFT:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: LEFT\n");
             Motor_SetSpeed(motor1, -motor2);
+            fsm_context.motion_timeout_active = 1;
+            fsm_context.active_motion_type = COMMAND_MOVE_LEFT;
+            fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_MOVE_RIGHT:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: RIGHT\n");
             Motor_SetSpeed(-motor1, motor2);
+            fsm_context.motion_timeout_active = 1;
+            fsm_context.active_motion_type = COMMAND_MOVE_RIGHT;
+            fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_STOP:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: STOP\n");
             Motor_SetSpeed(0, 0);
+            fsm_context.motion_timeout_active = 0;
+            fsm_context.active_motion_type = COMMAND_STOP;
+            fsm_context.motion_inactivity_counter = 0;
             break;
         default:
+            fsm_context.motion_timeout_active = 0;
+            fsm_context.active_motion_type = COMMAND_STOP;
+            fsm_context.motion_inactivity_counter = 0;
             break;
         }
 
         Board_LED_Set(LED_1, false);
-        
-        uart_request_command();
+        fsm_context.request_counter = 0;
         fsm_context.state = UART_STATE_IDLE;
     #ifdef UART_DEBUG_ENABLE
         UART_DEBUG_LOG_LN("FSM CMD PROCESSED");
@@ -139,7 +210,10 @@ void uart_mef_update(void)
     case UART_STATE_ERROR:
         Board_LED_Set(LED_1, false);
         Motor_emergency_stop();
-        uart_request_command();
+        fsm_context.request_counter = 0;
+        fsm_context.motion_timeout_active = 0;
+        fsm_context.active_motion_type = COMMAND_STOP;
+        fsm_context.motion_inactivity_counter = 0;
         fsm_context.state = UART_STATE_IDLE;
 #ifdef UART_DEBUG_ENABLE
         UART_DEBUG_LOG_LN("FSM ERROR");

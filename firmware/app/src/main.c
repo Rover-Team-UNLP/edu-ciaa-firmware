@@ -43,6 +43,7 @@ int main(void)
    return 0;
 }
 
+volatile uint8_t mef_tick_counter = 0;
 /**
  * @brief Handler de la interrupción del SysTick cada 1ms.
  */
@@ -50,5 +51,9 @@ void SysTick_Handler(void)
 {
    // Incrementa el contador para el delay del parpadeo del LED
    tick_counter++;
-   uart_mef_update();
+   mef_tick_counter++;
+   if (mef_tick_counter >= 20) {
+      uart_mef_update();
+      mef_tick_counter = 0;
+   }
 }

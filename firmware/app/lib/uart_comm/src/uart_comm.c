@@ -202,8 +202,9 @@ void uart_send_error_invalid_params(uint16_t cmd_id)
 // --- Funciones Privadas ---
 
 /**
- * @brief Parsea comando en formato: S:<COMMAND_ID>:<COMMAND_INTENSITY>:<COMMAND_ID_NUM>:E
- * Ejemplo: "0:1:123:" (MOVE_FORWARD INTENSITY_MEDIUM con ID 123)
+ * @brief Parsea comando en formato: S:<COMMAND_TYPE>:<COMMAND_INTENSITY>:<COMMAND_ID>:E
+ * Ejemplo: "S:0:1:123:E" (MOVE_FORWARD INTENSITY_MEDIUM con ID 123)
+ * Nota: COMMAND_INTENSITY usa enum (0=LOW, 1=MEDIUM, 2=HIGH).
  */
 static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
 {
@@ -212,16 +213,9 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         return false;
     }
 
-#ifdef DEBUG
-    unsigned int cmd_id;
-    unsigned int cmd_type;
-    unsigned int cmd_intensity;
-#else
-    uint16_t cmd_id;
-    uint8_t cmd_type;
-    uint8_t cmd_intensity;
-#endif
-    char start_char, end_char;
+    unsigned int cmd_id_u;
+    unsigned int cmd_type_u;
+    unsigned int cmd_intensity_u;
 
 #ifdef DEBUG
     char debug_buf[80];
@@ -303,20 +297,19 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
     }
 
 #ifdef DEBUG
-    int items = sscanf(buffer, "%c:%u:%u:%u:%c", &start_char, &cmd_type, &cmd_intensity, &cmd_id, &end_char);
+    int items = sscanf(buffer, "S:%u:%u:%u:E", &cmd_type_u, &cmd_intensity_u, &cmd_id_u);
 #else
-    int items = sscanf(buffer, "%c:%hhu:%hhu:%hu:%c", &start_char, &cmd_type, &cmd_intensity, &cmd_id, &end_char);
+    int items = sscanf(buffer, "S:%u:%u:%u:E", &cmd_type_u, &cmd_intensity_u, &cmd_id_u);
 #endif
 
 #ifdef DEBUG
     snprintf(debug_buf, sizeof(debug_buf),
-             "[DEBUG] Parsed: items=%d start='%c'(0x%02X) type=%u intensity=%u id=%u end='%c'(0x%02X)\n",
-             items, start_char, (uint8_t)start_char, cmd_type, cmd_intensity, cmd_id,
-             end_char, (uint8_t)end_char);
+             "[DEBUG] Parsed: items=%d type=%u intensity=%u id=%u\n",
+             items, cmd_type_u, cmd_intensity_u, cmd_id_u);
     uart_send_string_blocking(debug_buf);
 #endif
 
-    if (items != 5 || start_char != 'S' || end_char != 'E')
+    if (items != 3)
     {
 #ifdef DEBUG
         snprintf(debug_buf, sizeof(debug_buf),
@@ -329,6 +322,10 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         send_response(RESP_ERR_INVALID_COMMAND, 0);
         return false;
     }
+
+    uint16_t cmd_id = (uint16_t)cmd_id_u;
+    uint8_t cmd_type = (uint8_t)cmd_type_u;
+    uint8_t cmd_intensity = (uint8_t)cmd_intensity_u;
 
     // Validar tipo de comando
     if (cmd_type > COMMAND_STOP)
@@ -346,6 +343,22 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
         return false;
     }
 
+    // Validar intensidad (enum: 0..2)
+    if (cmd_intensity > INTENSITY_HIGH)
+    {
+#ifdef DEBUG
+        snprintf(debug_buf, sizeof(debug_buf),
+                 "[DEBUG] FAIL: cmd_intensity=%u > INTENSITY_HIGH=%u\n",
+                 cmd_intensity, INTENSITY_HIGH);
+        uart_send_string_blocking(debug_buf);
+#endif
+#ifdef UART_DEBUG_ENABLE
+        UART_DEBUG_LOG_LN("UART2 RX invalid intensity");
+#endif
+        send_response(RESP_ERR_INVALID_PARAMS, cmd_id);
+        return false;
+    }
+
 #ifdef DEBUG
     uart_send_string_blocking("[DEBUG] Validation passed!\n");
 #endif
@@ -356,8 +369,8 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
     command->cmd.intensity = cmd_intensity;
 
     // Enviar ACK
-    send_response(RESP_ACK, cmd_id);
-
+    uart_send_ack(cmd_id);
+    UART_DEBUG_LOG("ACK SENT");
 #ifdef DEBUG
     char debug_msg[80];
     snprintf(debug_msg, sizeof(debug_msg), "[RX] COMMAND: %s \t INTENSITY: %s \t (ID:%u) \n",
@@ -371,7 +384,7 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
     UART_DEBUG_LOG(" type=");
     UART_DEBUG_LOG_U32(cmd_type);
     UART_DEBUG_LOG(" intensity=");
-    UART_DEBUG_LOG_U32(cmd_intensity);
+    UART_DEBUG_LOG_U32(cmd_intensity);  
     UART_DEBUG_LOG("\r\n");
 #endif
 
@@ -385,7 +398,7 @@ static bool parse_command_string(const char *buffer, parsed_cmd_t *command)
 static void send_response(uart_resp_id_t resp_type, uint16_t cmd_id)
 {
     char response[20];
-    snprintf(response, sizeof(response), "S:%d:%u:E", resp_type, cmd_id);
+    snprintf(response, sizeof(response), "S:%d:%d:E", resp_type, cmd_id);
     uart_send_string_blocking(response);
 
 #ifdef DEBUG
