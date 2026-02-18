@@ -1,9 +1,12 @@
 #include "uart_mef.h"
 #include "uart_debug.h"
+#include <stdlib.h>
 
-#define UART_MEF_REQUEST_COMMAND_TICKS 50U
-#define UART_MEF_TIMEOUT_FB_TICKS 50U
-#define UART_MEF_TIMEOUT_TURN_TICKS 25U
+#define UART_MEF_REQUEST_COMMAND_TICKS 50
+#define UART_MEF_TIMEOUT_FB_TICKS 48
+#define UART_MEF_TIMEOUT_TURN_TICKS 12
+#define UART_MEF_RAMP_MAX_DELTA 15
+#define UART_MEF_RAMP_MAX_DELTA_TURN 100
 
 static uint32_t get_motion_timeout_ticks(uint8_t cmd_type)
 {
@@ -20,6 +23,21 @@ static uint32_t get_motion_timeout_ticks(uint8_t cmd_type)
     }
 }
 
+static int16_t ramp_velocity_with_delta(int16_t current, int16_t target, uint16_t max_delta)
+{
+    if (current == target)
+        return current;
+    
+    int16_t delta = target - current;
+    int16_t abs_delta = (delta < 0) ? -delta : delta;
+    int16_t sign = (delta > 0) ? 1 : -1;
+    
+    if (abs_delta <= max_delta)
+        return target;
+    else
+        return current + (sign * max_delta);
+}
+
 static struct
 {
     uart_state_t state;
@@ -28,6 +46,8 @@ static struct
     uint32_t motion_inactivity_counter;
     uint8_t motion_timeout_active;
     uint8_t active_motion_type;
+    int16_t m1_target, m2_target;
+    int16_t m1_current, m2_current;
 } fsm_context = {
     .state = UART_STATE_INIT,
     .current_cmd = {0},
@@ -35,6 +55,10 @@ static struct
     .motion_inactivity_counter = 0,
     .motion_timeout_active = 0,
     .active_motion_type = COMMAND_STOP,
+    .m1_target = 0,
+    .m2_target = 0,
+    .m1_current = 0,
+    .m2_current = 0,
 };
 
 void uart_mef_init(void)
@@ -44,6 +68,10 @@ void uart_mef_init(void)
     fsm_context.motion_inactivity_counter = 0;
     fsm_context.motion_timeout_active = 0;
     fsm_context.active_motion_type = COMMAND_STOP;
+    fsm_context.m1_target = 0;
+    fsm_context.m2_target = 0;
+    fsm_context.m1_current = 0;
+    fsm_context.m2_current = 0;
 }
 
 void uart_mef_update(void)
@@ -88,6 +116,15 @@ void uart_mef_update(void)
         } 
         else
         {
+            uint16_t delta_max = (fsm_context.active_motion_type == COMMAND_MOVE_LEFT ||
+                                  fsm_context.active_motion_type == COMMAND_MOVE_RIGHT)
+                                     ? UART_MEF_RAMP_MAX_DELTA_TURN
+                                     : UART_MEF_RAMP_MAX_DELTA;
+
+            fsm_context.m1_current = ramp_velocity_with_delta(fsm_context.m1_current, fsm_context.m1_target, delta_max);
+            fsm_context.m2_current = ramp_velocity_with_delta(fsm_context.m2_current, fsm_context.m2_target, delta_max);
+            Motor_SetSpeed(fsm_context.m1_current, fsm_context.m2_current);
+            
             if (fsm_context.motion_timeout_active)
             {
                 uint32_t timeout_ticks = get_motion_timeout_ticks(fsm_context.active_motion_type);
@@ -98,7 +135,8 @@ void uart_mef_update(void)
 
                     if (fsm_context.motion_inactivity_counter >= timeout_ticks)
                     {
-                        Motor_SetSpeed(0, 0);
+                        fsm_context.m1_target = 0;
+                        fsm_context.m2_target = 0;
                         fsm_context.motion_timeout_active = 0;
                         fsm_context.motion_inactivity_counter = 0;
 #ifdef UART_DEBUG_ENABLE
@@ -122,18 +160,18 @@ void uart_mef_update(void)
 
     case UART_STATE_PROCESS:
      {   
-        uint16_t motor1 = 0, motor2 = 0;
+        int motor1 = 0, motor2 = 0;
         if (fsm_context.current_cmd.cmd.type != COMMAND_STOP) {
             switch (fsm_context.current_cmd.cmd.intensity)
             {
             case INTENSITY_LOW:
-                motor1 = 33;
-                motor2 = 33;
+                motor1 = 50;
+                motor2 = 50;
                 UART_DEBUG_LOG_LN("Motor 1 & 2: 33");
                 break;
             case INTENSITY_MEDIUM:
-                motor1 = 66;
-                motor2 = 66;
+                motor1 = 70;
+                motor2 = 70;
                 UART_DEBUG_LOG_LN("Motor 1 & 2: 66");
                 break;
             case INTENSITY_HIGH:
@@ -158,40 +196,47 @@ void uart_mef_update(void)
         {
         case COMMAND_MOVE_FORWARD:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: FORWARD\n");
-            Motor_SetSpeed(motor1, motor2);
+            fsm_context.m1_target = -motor1;
+            fsm_context.m2_target = -motor2;
             fsm_context.motion_timeout_active = 1;
             fsm_context.active_motion_type = COMMAND_MOVE_FORWARD;
             fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_MOVE_BACKWARDS:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: BACKWARDS\n");
-            Motor_SetSpeed(-motor1, -motor2);
+            fsm_context.m1_target = motor1;
+            fsm_context.m2_target = motor2;
             fsm_context.motion_timeout_active = 1;
             fsm_context.active_motion_type = COMMAND_MOVE_BACKWARDS;
             fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_MOVE_LEFT:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: LEFT\n");
-            Motor_SetSpeed(motor1, -motor2);
+            fsm_context.m1_target = -100;
+            fsm_context.m2_target = 100;
             fsm_context.motion_timeout_active = 1;
             fsm_context.active_motion_type = COMMAND_MOVE_LEFT;
             fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_MOVE_RIGHT:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: RIGHT\n");
-            Motor_SetSpeed(-motor1, motor2);
+            fsm_context.m1_target = 100;
+            fsm_context.m2_target = -100;
             fsm_context.motion_timeout_active = 1;
             fsm_context.active_motion_type = COMMAND_MOVE_RIGHT;
             fsm_context.motion_inactivity_counter = 0;
             break;
         case COMMAND_STOP:
             UART_DEBUG_LOG_LN("COMMAND RECEIVED: STOP\n");
-            Motor_SetSpeed(0, 0);
+            fsm_context.m1_target = 0;
+            fsm_context.m2_target = 0;
             fsm_context.motion_timeout_active = 0;
             fsm_context.active_motion_type = COMMAND_STOP;
             fsm_context.motion_inactivity_counter = 0;
             break;
         default:
+            fsm_context.m1_target = 0;
+            fsm_context.m2_target = 0;
             fsm_context.motion_timeout_active = 0;
             fsm_context.active_motion_type = COMMAND_STOP;
             fsm_context.motion_inactivity_counter = 0;
@@ -214,6 +259,10 @@ void uart_mef_update(void)
         fsm_context.motion_timeout_active = 0;
         fsm_context.active_motion_type = COMMAND_STOP;
         fsm_context.motion_inactivity_counter = 0;
+        fsm_context.m1_target = 0;
+        fsm_context.m2_target = 0;
+        fsm_context.m1_current = 0;
+        fsm_context.m2_current = 0;
         fsm_context.state = UART_STATE_IDLE;
 #ifdef UART_DEBUG_ENABLE
         UART_DEBUG_LOG_LN("FSM ERROR");
