@@ -4,7 +4,7 @@
 
 #define UART_MEF_REQUEST_COMMAND_TICKS 50
 #define UART_MEF_TIMEOUT_FB_TICKS 48
-#define UART_MEF_TIMEOUT_TURN_TICKS 12
+#define UART_MEF_TIMEOUT_TURN_TICKS 25
 #define UART_MEF_RAMP_MAX_DELTA 15
 #define UART_MEF_RAMP_MAX_DELTA_TURN 100
 
@@ -38,6 +38,18 @@ static int16_t ramp_velocity_with_delta(int16_t current, int16_t target, uint16_
         return current + (sign * max_delta);
 }
 
+static void led_yellow()
+{
+    Chip_GPIO_SetPinState(LPC_GPIO_PORT, RED_LED, 0);
+    Chip_GPIO_SetPinState(LPC_GPIO_PORT, GREEN_LED, 1);
+}
+
+static void led_red()
+{
+    Chip_GPIO_SetPinState(LPC_GPIO_PORT, RED_LED, 1);
+    Chip_GPIO_SetPinState(LPC_GPIO_PORT, GREEN_LED, 0);
+}
+
 static struct
 {
     uart_state_t state;
@@ -48,6 +60,7 @@ static struct
     uint8_t active_motion_type;
     int16_t m1_target, m2_target;
     int16_t m1_current, m2_current;
+    uint32_t idle_prolonged_counter;
 } fsm_context = {
     .state = UART_STATE_INIT,
     .current_cmd = {0},
@@ -59,6 +72,7 @@ static struct
     .m2_target = 0,
     .m1_current = 0,
     .m2_current = 0,
+    .idle_prolonged_counter = 0,
 };
 
 void uart_mef_init(void)
@@ -72,6 +86,7 @@ void uart_mef_init(void)
     fsm_context.m2_target = 0;
     fsm_context.m1_current = 0;
     fsm_context.m2_current = 0;
+    fsm_context.idle_prolonged_counter = 0;
 }
 
 void uart_mef_update(void)
@@ -124,6 +139,37 @@ void uart_mef_update(void)
             fsm_context.m1_current = ramp_velocity_with_delta(fsm_context.m1_current, fsm_context.m1_target, delta_max);
             fsm_context.m2_current = ramp_velocity_with_delta(fsm_context.m2_current, fsm_context.m2_target, delta_max);
             Motor_SetSpeed(fsm_context.m1_current, fsm_context.m2_current);
+            
+            // LED indicadores de estado
+            if (fsm_context.m1_target == 0 && fsm_context.m2_target == 0)
+            {
+                // Quieto
+                if (fsm_context.idle_prolonged_counter < 100)
+                {
+                    // Normal idle: RED ON, GREEN (amarillo) OFF
+                    led_red();
+                }
+                else
+                {
+                    // Timeout idle >2s: alterna rojo-amarillo cada 200ms (10 ticks)
+                    if ((fsm_context.idle_prolonged_counter / 10) % 2 == 0)
+                    {
+                        led_red();
+                    }
+                    else
+                    {
+                        led_yellow();
+                    }
+                }
+            }
+            else
+            {
+                // En movimiento: RED OFF, GREEN (amarillo) ON
+                led_yellow();
+                fsm_context.idle_prolonged_counter = 0;
+            }
+            
+            fsm_context.idle_prolonged_counter++;
             
             if (fsm_context.motion_timeout_active)
             {
@@ -182,12 +228,10 @@ void uart_mef_update(void)
             default:
                 break;
             }
-            Chip_GPIO_SetPinState(LPC_GPIO_PORT, RED_LED, 0);
-            Chip_GPIO_SetPinState(LPC_GPIO_PORT, GREEN_LED, 1);
+            led_yellow();
         }
         else {
-            Chip_GPIO_SetPinState(LPC_GPIO_PORT, RED_LED, 1);
-            Chip_GPIO_SetPinState(LPC_GPIO_PORT, GREEN_LED, 0);
+            led_red();
         }
 
         // NOTA: motor1 = izquierda
@@ -245,6 +289,7 @@ void uart_mef_update(void)
 
         Board_LED_Set(LED_1, false);
         fsm_context.request_counter = 0;
+        fsm_context.idle_prolonged_counter = 0;
         fsm_context.state = UART_STATE_IDLE;
     #ifdef UART_DEBUG_ENABLE
         UART_DEBUG_LOG_LN("FSM CMD PROCESSED");
@@ -263,6 +308,7 @@ void uart_mef_update(void)
         fsm_context.m2_target = 0;
         fsm_context.m1_current = 0;
         fsm_context.m2_current = 0;
+        fsm_context.idle_prolonged_counter = 0;
         fsm_context.state = UART_STATE_IDLE;
 #ifdef UART_DEBUG_ENABLE
         UART_DEBUG_LOG_LN("FSM ERROR");
